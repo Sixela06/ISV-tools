@@ -755,7 +755,7 @@ function drawNode(node) {
     }
 
     const fillCol = getNodeFillColor(node);
-    const fillMode = node.affected ? 'full' : (node.carrier ? 'half' : 'none');
+    const fillMode = node.affected ? 'full' : (node.carrier && node.illnessType !== 'dominant' ? 'half' : 'none');
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
 
@@ -957,20 +957,37 @@ function handleNodeClick(node) {
             break;
 
         case 'markAffected': {
-            if (!node.affected && !node.carrier) {
-                node.affected = true;
+            if (illnessMode === 'dominant') {
                 node.carrier = false;
+                if (!node.affected) {
+                    node.affected = true;
+                    node.illnessType = 'dominant';
+                } else {
+                    node.affected = false;
+                    node.illnessType = null;
+                }
+                setStatus(`Node ${node.id}: ${node.affected ? 'affected (dominant)' : 'unaffected'}`);
+                break;
+            }
+
+            const maleNoCarrier = illnessMode === 'xlinked' && node.sex === 'male';
+            if (!node.affected && !node.carrier) {
+                if (maleNoCarrier) {
+                    node.affected = true;
+                } else {
+                    node.carrier = true;
+                }
                 node.illnessType = illnessMode;
-            } else if (node.affected && !node.carrier) {
-                node.affected = false;
-                node.carrier = true;
+            } else if (node.carrier) {
+                node.carrier = false;
+                node.affected = true;
                 node.illnessType = illnessMode;
             } else {
                 node.affected = false;
                 node.carrier = false;
                 node.illnessType = null;
             }
-            const status = node.affected ? 'affected' : (node.carrier ? 'carrier' : 'clear');
+            const status = node.affected ? 'affected' : (node.carrier ? 'carrier' : 'unaffected');
             setStatus(`Node ${node.id}: ${status}${node.affected || node.carrier ? ' (' + illnessMode + ')' : ''}`);
             break;
         }
@@ -1061,7 +1078,9 @@ function setIllnessTool(mode) {
     ind.textContent = 'Mode: ' + labels[mode];
     ind.classList.add('active-' + mode);
 
-    setStatus('Click a node to cycle: affected → carrier → clear');
+    setStatus(illnessMode === 'dominant'
+        ? 'Click a node to toggle affected status'
+        : 'Click a node to cycle: unaffected → carrier → affected');
     draw();
 }
 
@@ -1306,10 +1325,13 @@ function getInheritanceProb(c, f, m, childId, resolvedSexes) {
 }
 
 function getPhenotypeEvidence(geno, affected, carrier, sex) {
-    if (carrier) {
-        if (illnessMode === 'recessive' || illnessMode === 'dominant') {
+    if (carrier && illnessMode !== 'dominant') {
+        if (illnessMode === 'recessive') {
             return (geno === 1) ? 1.0 : 0.0;
         } else if (illnessMode === 'xlinked') {
+            if (sex === 'male') {
+                return (geno === 1) ? 1.0 : 0.0;
+            }
             return (geno === 1) ? 1.0 : 0.0;
         }
     }
@@ -1344,11 +1366,14 @@ function getPhenotypeEvidence(geno, affected, carrier, sex) {
 }
 
 function getPhenotypeEvidenceForNode(geno, node, sex) {
-    return getPhenotypeEvidence(geno, node.affected, node.carrier, sex);
+    const carrier = illnessMode === 'dominant' ? false : node.carrier;
+    return getPhenotypeEvidence(geno, node.affected, carrier, sex);
 }
 
 function childHasTrait(childNode) {
-    return childNode && (childNode.affected || childNode.carrier);
+    if (!childNode) return false;
+    if (illnessMode === 'dominant') return childNode.affected;
+    return childNode.affected || childNode.carrier;
 }
 
 function runVariableElimination(targetId, excludeEvidenceId = null) {
@@ -1785,9 +1810,7 @@ function calculatePedigreeProbabilities() {
                     `P(dd) = P(dd)_raw ÷ (P(Dd)_raw + P(dd)_raw) = ${fp(P_dd_raw)} ÷ ${fp(sum_raw)} = ${fp(P_dd)}`;
             }
 
-            if (targetNode.carrier) {
-                explanationCond = `Target is a known heterozygous carrier. Genotype must be Dd.\n\nP(Dd | carrier) = 100%`;
-            } else if (!targetNode.affected) {
+            if (!targetNode.affected) {
                 explanationCond = `Target is unaffected. Under dominant inheritance, unaffected individuals must have genotype dd (100%).`;
             }
         } else if (illnessMode === 'xlinked') {
@@ -1803,9 +1826,7 @@ function calculatePedigreeProbabilities() {
                     `P(XᴬY) = P(Mother passes Xᴬ) = P(XᴬXᴬ) + 0.5*P(XᴬXᵃ) = ${fp(m0)} + 0.5*${fp(m1)} = ${fp(P_A)}\n` +
                     `P(XᵃY) = P(Mother passes Xᵃ) = P(XᵃXᵃ) + 0.5*P(XᴬXᵃ) = ${fp(m2)} + 0.5*${fp(m1)} = ${fp(P_a)}`;
 
-                if (targetNode.carrier) {
-                    explanationCond = `Target is a known carrier. Genotype must be XᵃY.\n\nP(XᵃY | carrier) = 100%`;
-                } else if (!targetNode.affected) {
+                if (!targetNode.affected) {
                     explanationCond = `Target is unaffected. Under X-linked recessive, an unaffected male must have genotype XᴬY (100%).`;
                 }
             } else {
@@ -2014,12 +2035,7 @@ async function runCalculation() {
         html += '</div>';
 
         // 2. Conditioned Section
-        if (target.carrier) {
-            html += '<div class="result-section">';
-            html += '<div class="result-section-title conditioned">If Carrier (Conditioned)</div>';
-            html += probRow('Hetero. affected (Dd)', 1.0, '#fbbf24', explanationCond);
-            html += '</div>';
-        } else if (!target.affected) {
+        if (!target.affected) {
             html += '<div class="result-section">';
             html += '<div class="result-section-title conditioned">If Unaffected (Conditioned)</div>';
             html += probRow('Unaffected (dd)', 1.0, '#34d399', explanationCond);
@@ -2039,12 +2055,7 @@ async function runCalculation() {
             html += '</div>';
 
             // 2. Conditioned Section
-            if (target.carrier) {
-                html += '<div class="result-section">';
-                html += '<div class="result-section-title conditioned">If Carrier (Conditioned)</div>';
-                html += probRow('Affected (X<sup>a</sup>Y)', 1.0, '#f87171', explanationCond);
-                html += '</div>';
-            } else if (!target.affected) {
+            if (!target.affected) {
                 html += '<div class="result-section">';
                 html += '<div class="result-section-title conditioned">If Unaffected (Conditioned)</div>';
                 html += probRow('Normal (X<sup>A</sup>Y)', 1.0, '#34d399', explanationCond);
