@@ -1,0 +1,2141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genetic Pedigree Calculator</title>
+    <meta name="description" content="Draw pedigree trees and calculate genetic transmission probabilities for recessive, dominant, and X-linked traits.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Tahoma', 'Arial', sans-serif;
+            background: #c0c0c0; /* Classic Windows gray desktop */
+            color: #000000;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* ── Classic Windows Titlebar ── */
+        header {
+            background: linear-gradient(90deg, #000080 0%, #1084d0 100%);
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 13px;
+            flex-shrink: 0;
+            border-bottom: 2px solid #808080;
+        }
+        header h1 {
+            font-size: 13px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+        header .subtitle {
+            font-size: 10px;
+            color: #d4d0c8;
+            font-weight: normal;
+        }
+
+        /* ── Main Layout ── */
+        main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            padding: 4px;
+            gap: 4px;
+            background: #808080; /* Desk background behind panels */
+        }
+
+        /* ── Sidebar (Tools Panel) ── */
+        #sidebar {
+            width: 200px;
+            min-width: 200px;
+            background: #d4d0c8; /* Classic face color */
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff; /* 3D raised */
+            padding: 6px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            scrollbar-width: thin;
+        }
+
+        .section-label {
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #000000;
+            margin: 4px 0 2px 2px;
+            border-bottom: 1px solid #808080;
+            padding-bottom: 2px;
+        }
+        .section-label:first-child { margin-top: 0; }
+
+        /* ── Classic Windows 3D Buttons ── */
+        .tool-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 8px;
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff; /* Raised */
+            color: #000000;
+            cursor: pointer;
+            font-size: 11px;
+            font-family: inherit;
+            font-weight: bold;
+            outline: none;
+            text-align: left;
+        }
+        .tool-btn:hover {
+            background: #e0ded9;
+        }
+        .tool-btn:active, .tool-btn.active {
+            border-color: #808080 #ffffff #ffffff #808080 !important; /* Pressed */
+            background: #c0c0c0 !important;
+            padding: 6px 7px 4px 9px; /* Shift text slightly down-right */
+        }
+        .tool-btn .icon {
+            font-size: 13px;
+            width: 16px;
+            text-align: center;
+            flex-shrink: 0;
+            font-weight: bold;
+        }
+
+        /* Illness indicator dots */
+        .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            border: 1px solid #000;
+            flex-shrink: 0;
+        }
+        .dot.recessive  { background: #ff0000; }
+        .dot.dominant    { background: #a020f0; }
+        .dot.xlinked     { background: #00ff00; }
+
+        /* Mode indicator */
+        #mode-indicator {
+            padding: 4px;
+            font-size: 10px;
+            font-weight: bold;
+            text-align: center;
+            background: #ffffff;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080; /* Inset */
+            color: #808080;
+            margin-top: 2px;
+        }
+        #mode-indicator.active-recessive { color: #ff0000; }
+        #mode-indicator.active-dominant { color: #a020f0; }
+        #mode-indicator.active-xlinked { color: #008000; }
+
+        /* Run button */
+        #run-btn {
+            margin-top: 4px;
+            padding: 6px;
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            color: #000000;
+            font-weight: bold;
+            font-size: 11px;
+            font-family: inherit;
+            cursor: pointer;
+        }
+        #run-btn:hover { background: #e0ded9; }
+        #run-btn:active {
+            border-color: #808080 #ffffff #ffffff #808080;
+            background: #c0c0c0;
+            padding: 7px 5px 5px 7px;
+        }
+
+        /* Results panel (Classic Windows Group Box) ── */
+        #results {
+            margin-top: 4px;
+            padding: 0;
+            font-size: 11px;
+        }
+        #results:not(:empty) {
+            padding: 8px;
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080; /* Inset */
+        }
+        .results-title {
+            font-weight: bold;
+            font-size: 12px;
+            color: #000000;
+            margin-bottom: 6px;
+            border-bottom: 1px solid #808080;
+            padding-bottom: 2px;
+        }
+        
+        .result-section {
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px solid #808080;
+        }
+        .result-section:first-of-type {
+            margin-top: 0;
+            padding-top: 0;
+            border-top: none;
+        }
+        .result-section-title {
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: #000080;
+            margin-bottom: 4px;
+        }
+        .result-section-title.conditioned {
+            color: #008000;
+        }
+        
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2px;
+            color: #000000;
+        }
+        .result-row span:last-child { font-weight: bold; }
+        .result-bar {
+            height: 10px;
+            background: #ffffff;
+            border: 1px solid #808080;
+            margin-bottom: 6px;
+            overflow: hidden;
+        }
+        .result-bar div {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        .result-error {
+            color: #ff0000;
+            font-weight: bold;
+            font-size: 11px;
+        }
+
+        /* Legend */
+        #legend {
+            margin-top: 4px;
+            padding: 6px;
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080; /* Inset */
+            font-size: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px 8px;
+        }
+        .legend-item { display: flex; align-items: center; gap: 4px; }
+        .legend-shape {
+            width: 10px; height: 10px;
+            border: 1px solid #000000;
+            background: #ffffff;
+            flex-shrink: 0;
+        }
+        .legend-shape.sq { border-radius: 0; }
+        .legend-shape.ci { border-radius: 50%; }
+        .legend-shape.di { transform: rotate(45deg) scale(0.75); }
+        .legend-shape.filled { background: #ff0000; }
+        .legend-shape.half-filled {
+            background: linear-gradient(to right, #ff0000 50%, #ffffff 50%);
+        }
+
+        /* ── Canvas Container (Desktop sheet area) ── */
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            background: #808080; /* Classic dark gray desk */
+            padding: 4px;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080; /* Inset desktop */
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+        #canvas-viewport {
+            flex: 1;
+            overflow: auto;
+            min-height: 0;
+        }
+        #canvas-container canvas {
+            display: block;
+            background: #ffffff; /* Pure white drawing sheet */
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.5); /* Drop shadow for page sheet */
+            cursor: crosshair;
+            flex-shrink: 0;
+        }
+        #zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 2px;
+            z-index: 10;
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            padding: 2px;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.35);
+            pointer-events: auto;
+        }
+        .zoom-btn {
+            min-width: 28px;
+            height: 24px;
+            padding: 2px 6px;
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            font-size: 14px;
+            font-weight: bold;
+            font-family: inherit;
+            cursor: pointer;
+            color: #000000;
+            line-height: 1;
+        }
+        .zoom-btn:hover { background: #e0ded9; }
+        .zoom-btn:active {
+            border-color: #808080 #ffffff #ffffff #808080;
+            padding: 3px 5px 1px 7px;
+        }
+        .zoom-label {
+            min-width: 48px;
+            font-size: 11px;
+        }
+
+        /* ── Footer Status Bar ── */
+        #status {
+            background: #d4d0c8;
+            border-top: 2px solid #808080;
+            padding: 3px 6px;
+            font-size: 11px;
+            color: #000000;
+            font-weight: normal;
+            box-shadow: inset 1px 1px 0 #ffffff;
+            flex-shrink: 0;
+        }
+
+        /* Custom buttons styling */
+        .danger-btn {
+            color: #a00000 !important;
+        }
+        .preset-btn {
+            color: #000080 !important;
+        }
+
+        .sep {
+            height: 2px;
+            background: #808080;
+            border-bottom: 1px solid #ffffff;
+            margin: 4px 0;
+        }
+
+        /* ── Win95 Dialog Modal Styles ── */
+        .win95-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .win95-dialog {
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            width: 320px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            font-family: 'Tahoma', 'Arial', sans-serif;
+        }
+        .win95-dialog-titlebar {
+            background: linear-gradient(90deg, #000080 0%, #1084d0 100%);
+            color: #ffffff;
+            padding: 3px 6px;
+            font-weight: bold;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .win95-dialog-titlebar h2 {
+            font-size: 12px;
+            margin: 0;
+            font-weight: bold;
+        }
+        .win95-dialog-close {
+            background: #d4d0c8;
+            border: 1px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            color: #000000;
+            font-size: 9px;
+            font-weight: bold;
+            width: 16px; height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+        }
+        .win95-dialog-close:active {
+            border-color: #808080 #ffffff #ffffff #808080;
+            padding-top: 1px;
+            padding-left: 1px;
+        }
+        .win95-dialog-content {
+            padding: 15px;
+            font-size: 11px;
+            color: #000000;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            line-height: 1.4;
+        }
+        .win95-dialog-icon {
+            font-size: 24px;
+            user-select: none;
+        }
+        .win95-dialog-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            padding-bottom: 12px;
+        }
+        .win95-btn {
+            min-width: 75px;
+            padding: 4px 8px;
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            font-size: 11px;
+            font-weight: bold;
+            font-family: inherit;
+            color: #000000;
+            cursor: pointer;
+            outline: none;
+        }
+        .win95-btn:active {
+            border-color: #808080 #ffffff #ffffff #808080;
+            padding: 5px 7px 3px 9px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <span class="logo">🧬</span>
+            <h1>Genetic Pedigree Calculator</h1>
+            <span class="subtitle">Draw a tree · Mark affected/carrier · Calculate probabilities</span>
+        </header>
+        <main>
+            <aside id="sidebar">
+                <div class="section-label">Tools</div>
+                <button class="tool-btn active" data-tool="add" onclick="setTool('add')">
+                    <span class="icon">＋</span> Add Node
+                </button>
+                <button class="tool-btn" data-tool="link" onclick="setTool('link')">
+                    <span class="icon">⤵</span> Draw Link
+                </button>
+                <button class="tool-btn" data-tool="remove_link" onclick="setTool('remove_link')">
+                    <span class="icon">↛</span> Remove Link
+                </button>
+                <button class="tool-btn" data-tool="remove" onclick="setTool('remove')">
+                    <span class="icon">✕</span> Remove Node
+                </button>
+
+                <div class="sep"></div>
+                <div class="section-label">Mark Illness</div>
+                <button class="tool-btn" data-tool="recessive" onclick="setIllnessTool('recessive')">
+                    <span class="dot recessive"></span> Recessive
+                </button>
+                <button class="tool-btn" data-tool="dominant" onclick="setIllnessTool('dominant')">
+                    <span class="dot dominant"></span> Dominant
+                </button>
+                <button class="tool-btn" data-tool="xlinked" onclick="setIllnessTool('xlinked')">
+                    <span class="dot xlinked"></span> X-Linked
+                </button>
+                <div id="mode-indicator">No mode selected</div>
+
+                <div class="sep"></div>
+                <div class="section-label">Calculate</div>
+                <button class="tool-btn" data-tool="target" onclick="setTool('target')">
+                    <span class="icon">🎯</span> Select Target
+                </button>
+                <button id="run-btn" onclick="runCalculation()">▶ &nbsp;Run</button>
+
+                <div id="results"></div>
+
+                <div class="sep"></div>
+                <div class="section-label">Sample Trees</div>
+                <button class="tool-btn preset-btn" onclick="loadSample('recessive_carrier')">
+                    <span class="icon">🧬</span> Carrier Cross
+                </button>
+                <button class="tool-btn preset-btn" onclick="loadSample('dominant_huntington')">
+                    <span class="icon">👑</span> Dominant Tree
+                </button>
+                <button class="tool-btn preset-btn" onclick="loadSample('xlinked_cb')">
+                    <span class="icon">👁️</span> Color Blindness
+                </button>
+                <button class="tool-btn danger-btn" onclick="clearCanvas()">
+                    <span class="icon">🗑️</span> Clear Canvas
+                </button>
+
+                <div class="sep"></div>
+                <div id="legend">
+                    <div class="legend-item"><div class="legend-shape sq"></div>Male</div>
+                    <div class="legend-item"><div class="legend-shape ci"></div>Female</div>
+                    <div class="legend-item"><div class="legend-shape di"></div>Unknown</div>
+                    <div class="legend-item"><div class="legend-shape sq filled"></div>Affected</div>
+                    <div class="legend-item"><div class="legend-shape sq half-filled"></div>Carrier</div>
+                </div>
+            </aside>
+            <div id="canvas-container">
+                <div id="canvas-viewport">
+                    <canvas id="canvas"></canvas>
+                </div>
+                <div id="zoom-controls">
+                    <button type="button" class="zoom-btn" onclick="zoomOut()" title="Zoom out">−</button>
+                    <button type="button" class="zoom-btn zoom-label" id="zoom-level" onclick="zoomReset()" title="Reset zoom">100%</button>
+                    <button type="button" class="zoom-btn" onclick="zoomIn()" title="Zoom in">+</button>
+                </div>
+            </div>
+        </main>
+        <footer id="status">Click on the canvas to add individuals</footer>
+    </div>
+
+<script>
+/* ================================================================
+   STATE
+   ================================================================ */
+let nodes = [];          // { id, x, y, sex:'male'|'female'|'undetermined', affected:bool, carrier:bool, illnessType:null|'recessive'|'dominant'|'xlinked' }
+let links = [];          // { from (parent id), to (child id) }
+let nextId = 1;
+
+let currentTool = 'add';          // 'add','link','remove','markAffected','target'
+let illnessMode = null;           // 'recessive','dominant','xlinked'
+let targetNodeId = null;
+let linkStartNode = null;
+let ddViable = true;
+
+// Interaction
+let dragState = null;             // { node, startX, startY, origX, origY, isDragging }
+let hoveredNode = null;
+let mouseX = 0, mouseY = 0;
+
+const NODE_SIZE = 22;
+const HIT_RADIUS = 28;
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 3;
+const ZOOM_STEP = 1.25;
+const MIN_WORLD_W = 1200;
+const MIN_WORLD_H = 900;
+let viewScale = 1;
+
+/* ================================================================
+   CANVAS SETUP
+   ================================================================ */
+const canvas  = document.getElementById('canvas');
+const ctx     = canvas.getContext('2d');
+const wrap    = document.getElementById('canvas-container');
+const viewport = document.getElementById('canvas-viewport');
+
+function getWorldSize() {
+    const pad = 120;
+    const contentW = nodes.length ? Math.max(...nodes.map(n => n.x)) + pad : 0;
+    const contentH = nodes.length ? Math.max(...nodes.map(n => n.y)) + pad : 0;
+    const viewW = viewport.clientWidth / viewScale;
+    const viewH = viewport.clientHeight / viewScale;
+    return {
+        w: Math.max(MIN_WORLD_W, viewW, contentW),
+        h: Math.max(MIN_WORLD_H, viewH, contentH)
+    };
+}
+
+function updateCanvasDimensions() {
+    const dpr = window.devicePixelRatio || 1;
+    const world = getWorldSize();
+    const displayW = world.w * viewScale;
+    const displayH = world.h * viewScale;
+    canvas.width = Math.round(displayW * dpr);
+    canvas.height = Math.round(displayH * dpr);
+    canvas.style.width = displayW + 'px';
+    canvas.style.height = displayH + 'px';
+}
+
+function getCanvasCoords(e) {
+    const r = canvas.getBoundingClientRect();
+    return {
+        x: (e.clientX - r.left) / viewScale,
+        y: (e.clientY - r.top) / viewScale
+    };
+}
+
+function updateZoomUI() {
+    const label = document.getElementById('zoom-level');
+    if (label) label.textContent = Math.round(viewScale * 100) + '%';
+}
+
+function setViewScale(scale) {
+    viewScale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, scale));
+    updateZoomUI();
+    resize();
+}
+
+function zoomIn() { setViewScale(viewScale * ZOOM_STEP); }
+function zoomOut() { setViewScale(viewScale / ZOOM_STEP); }
+function zoomReset() { setViewScale(1); }
+
+function resize() {
+    updateCanvasDimensions();
+    draw();
+}
+window.addEventListener('resize', resize);
+requestAnimationFrame(resize);
+
+/* ================================================================
+   DRAWING
+   ================================================================ */
+function correctLinkDirections() {
+    links.forEach(l => {
+        const p = nodes.find(n => n.id === l.from);
+        const c = nodes.find(n => n.id === l.to);
+        if (p && c) {
+            const Y_THRESHOLD = 15;
+            if (p.y > c.y + Y_THRESHOLD) {
+                const temp = l.from;
+                l.from = l.to;
+                l.to = temp;
+            }
+        }
+    });
+}
+
+function draw() {
+    correctLinkDirections(); // Auto-correct reverse links
+    updateCanvasDimensions();
+    const dpr = window.devicePixelRatio || 1;
+    const world = getWorldSize();
+    ctx.setTransform(dpr * viewScale, 0, 0, dpr * viewScale, 0, 0);
+    ctx.clearRect(0, 0, world.w, world.h);
+
+    // Light gray dot grid
+    ctx.fillStyle = '#e0e0e0';
+    for (let x = 20; x < world.w; x += 30)
+        for (let y = 20; y < world.h; y += 30)
+            ctx.fillRect(x, y, 1, 1);
+
+    // Draw links
+    links.forEach(drawLink);
+
+    // Link preview
+    if (currentTool === 'link' && linkStartNode) {
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(linkStartNode.x, linkStartNode.y);
+        ctx.lineTo(mouseX, mouseY);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // Draw nodes
+    nodes.forEach(n => drawNode(n));
+}
+
+function drawLink(link) {
+    const p = nodes.find(n => n.id === link.from);
+    const c = nodes.find(n => n.id === link.to);
+    if (!p || !c) return;
+
+    // L-shaped connector: down from parent, then across to child
+    const midY = (p.y + c.y) / 2;
+
+    ctx.beginPath();
+    ctx.strokeStyle = '#000000'; // Solid black line
+    ctx.lineWidth = 2;
+    ctx.moveTo(p.x, p.y + NODE_SIZE);
+    ctx.lineTo(p.x, midY);
+    ctx.lineTo(c.x, midY);
+    ctx.lineTo(c.x, c.y - NODE_SIZE);
+    ctx.stroke();
+
+    // Small arrow at child end
+    const arrowY = c.y - NODE_SIZE;
+    ctx.beginPath();
+    ctx.moveTo(c.x - 5, arrowY - 6);
+    ctx.lineTo(c.x, arrowY);
+    ctx.lineTo(c.x + 5, arrowY - 6);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+}
+
+function getNodeFillColor(node) {
+    if (!node.affected && !node.carrier) return null;
+    const type = node.illnessType || illnessMode;
+    if (type === 'recessive') return '#ff0000';
+    if (type === 'dominant') return '#a020f0';
+    if (type === 'xlinked') return '#00cc00';
+    return '#ff0000';
+}
+
+function traceNodeShape(x, y, s, sex) {
+    if (sex === 'male') {
+        ctx.rect(x - s, y - s, s * 2, s * 2);
+    } else if (sex === 'female') {
+        ctx.arc(x, y, s, 0, Math.PI * 2);
+    } else {
+        ctx.moveTo(x, y - s);
+        ctx.lineTo(x + s, y);
+        ctx.lineTo(x, y + s);
+        ctx.lineTo(x - s, y);
+        ctx.closePath();
+    }
+}
+
+function drawNode(node) {
+    const { x, y, sex, id } = node;
+    const s = NODE_SIZE;
+
+    ctx.save();
+
+    // Classic MS Paint Selection Handles for Target Node
+    if (id === targetNodeId) {
+        ctx.strokeStyle = '#0000ff';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.strokeRect(x - s - 4, y - s - 4, s * 2 + 8, s * 2 + 8);
+        ctx.setLineDash([]); // Reset
+        
+        ctx.fillStyle = '#0000ff';
+        const handles = [
+            { hx: x - s - 6, hy: y - s - 6 },
+            { hx: x - 2, hy: y - s - 6 },
+            { hx: x + s + 2, hy: y - s - 6 },
+            { hx: x - s - 6, hy: y - 2 },
+            { hx: x + s + 2, hy: y - 2 },
+            { hx: x - s - 6, hy: y + s + 2 },
+            { hx: x - 2, hy: y + s + 2 },
+            { hx: x + s + 2, hy: y + s + 2 }
+        ];
+        handles.forEach(h => ctx.fillRect(h.hx, h.hy, 4, 4));
+    }
+
+    // Hover Selection Box
+    if (hoveredNode && hoveredNode.id === id && id !== targetNodeId) {
+        ctx.strokeStyle = '#0000ff';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 2]);
+        ctx.strokeRect(x - s - 2, y - s - 2, s * 2 + 4, s * 2 + 4);
+        ctx.setLineDash([]);
+    }
+
+    const fillCol = getNodeFillColor(node);
+    const fillMode = node.affected ? 'full' : (node.carrier ? 'half' : 'none');
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+
+    ctx.beginPath();
+    traceNodeShape(x, y, s, sex);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+
+    if (fillCol && fillMode === 'full') {
+        ctx.fillStyle = fillCol;
+        ctx.fill();
+    } else if (fillCol && fillMode === 'half') {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x - s, y - s, s, s * 2);
+        ctx.clip();
+        ctx.beginPath();
+        traceNodeShape(x, y, s, sex);
+        ctx.fillStyle = fillCol;
+        ctx.fill();
+        ctx.restore();
+    }
+
+    ctx.beginPath();
+    traceNodeShape(x, y, s, sex);
+    ctx.stroke();
+
+    ctx.restore();
+
+    // Label
+    ctx.font = 'bold 11px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#000000';
+    ctx.fillText(String(id), x, y);
+
+    // Sex letter below node
+    const sexLetter = sex === 'male' ? '♂' : sex === 'female' ? '♀' : '?';
+    ctx.font = '10px Arial, sans-serif';
+    ctx.fillStyle = '#555555';
+    ctx.fillText(sexLetter, x, y + s + 12);
+}
+
+/* ================================================================
+   HIT DETECTION
+   ================================================================ */
+function getNodeAt(px, py) {
+    for (let i = nodes.length - 1; i >= 0; i--) {
+        const n = nodes[i];
+        const dx = px - n.x, dy = py - n.y;
+        if (dx * dx + dy * dy < HIT_RADIUS * HIT_RADIUS) return n;
+    }
+    return null;
+}
+
+/* ================================================================
+   EVENT HANDLERS
+   ================================================================ */
+canvas.addEventListener('mousedown', e => {
+    const { x, y } = getCanvasCoords(e);
+    const node = getNodeAt(x, y);
+
+    if (node) {
+        dragState = { node, startX: x, startY: y, origX: node.x, origY: node.y, isDragging: false };
+    }
+});
+
+canvas.addEventListener('mousemove', e => {
+    const coords = getCanvasCoords(e);
+    mouseX = coords.x;
+    mouseY = coords.y;
+
+    if (dragState) {
+        const dx = mouseX - dragState.startX;
+        const dy = mouseY - dragState.startY;
+        if (!dragState.isDragging && (dx * dx + dy * dy > 25)) {
+            dragState.isDragging = true;
+            canvas.style.cursor = 'grabbing';
+        }
+        if (dragState.isDragging) {
+            const rawX = dragState.origX + dx;
+            const rawY = dragState.origY + dy;
+            const snapped = snapToGrid(rawX, rawY);
+            dragState.node.x = snapped.x;
+            dragState.node.y = snapped.y;
+        }
+    }
+
+    const prev = hoveredNode;
+    hoveredNode = getNodeAt(mouseX, mouseY);
+    if (hoveredNode !== prev || (currentTool === 'link' && linkStartNode)) draw();
+    if (!dragState && hoveredNode) canvas.style.cursor = 'pointer';
+    else if (!dragState) canvas.style.cursor = 'crosshair';
+
+    if (dragState && dragState.isDragging) draw();
+});
+
+canvas.addEventListener('mouseup', e => {
+    const { x, y } = getCanvasCoords(e);
+
+    if (dragState) {
+        if (!dragState.isDragging) {
+            handleNodeClick(dragState.node);
+        }
+        dragState = null;
+        canvas.style.cursor = hoveredNode ? 'pointer' : 'crosshair';
+        draw();
+        return;
+    }
+
+    // Click on empty space
+    if (!getNodeAt(x, y)) {
+        handleEmptyClick(x, y);
+    }
+    draw();
+});
+
+canvas.addEventListener('mouseleave', () => {
+    hoveredNode = null;
+    if (dragState) { dragState = null; canvas.style.cursor = 'crosshair'; }
+    draw();
+});
+
+function handleNodeClick(node) {
+    switch (currentTool) {
+        case 'add':
+            const sexes = ['male', 'female', 'undetermined'];
+            node.sex = sexes[(sexes.indexOf(node.sex) + 1) % 3];
+            setStatus(`Node ${node.id} → ${node.sex}`);
+            break;
+
+        case 'link':
+            if (!linkStartNode) {
+                linkStartNode = node;
+                setStatus(`Selected Node ${node.id} to link. Click another node.`);
+            } else if (node.id !== linkStartNode.id) {
+                // Auto-determine parent & child based on vertical position (higher is parent)
+                let pNode, cNode;
+                const Y_THRESHOLD = 15;
+                if (Math.abs(linkStartNode.y - node.y) > Y_THRESHOLD) {
+                    if (linkStartNode.y < node.y) {
+                        pNode = linkStartNode;
+                        cNode = node;
+                    } else {
+                        pNode = node;
+                        cNode = linkStartNode;
+                    }
+                } else {
+                    // Same generation/close: fallback to click order
+                    pNode = linkStartNode;
+                    cNode = node;
+                }
+
+                const currentParents = links.filter(l => l.to === cNode.id).length;
+                if (currentParents >= 2) {
+                    setStatus(`Node ${cNode.id} already has 2 parents (maximum allowed).`);
+                    linkStartNode = null;
+                } else if (!links.some(l => l.from === pNode.id && l.to === cNode.id)) {
+                    // Prevent cycles
+                    if (!wouldCreateCycle(pNode.id, cNode.id)) {
+                        links.push({ from: pNode.id, to: cNode.id });
+                        setStatus(`Linked parent ${pNode.id} to child ${cNode.id}.`);
+                    } else {
+                        setStatus('Cannot create a cycle!');
+                    }
+                    linkStartNode = null;
+                } else {
+                    linkStartNode = null;
+                    setStatus('Link already exists.');
+                }
+            }
+            break;
+
+        case 'remove_link':
+            if (!linkStartNode) {
+                linkStartNode = node;
+                setStatus(`Selected Node ${node.id}. Click the other node to remove their link.`);
+            } else if (node.id !== linkStartNode.id) {
+                const index = links.findIndex(l => 
+                    (l.from === linkStartNode.id && l.to === node.id) || 
+                    (l.from === node.id && l.to === linkStartNode.id)
+                );
+                if (index !== -1) {
+                    const removed = links.splice(index, 1)[0];
+                    setStatus(`Removed link between Node ${removed.from} and Node ${removed.to}.`);
+                } else {
+                    setStatus(`No link found between Node ${linkStartNode.id} and Node ${node.id}.`);
+                }
+                linkStartNode = null;
+            }
+            break;
+
+        case 'remove':
+            nodes = nodes.filter(n => n.id !== node.id);
+            links = links.filter(l => l.from !== node.id && l.to !== node.id);
+            if (targetNodeId === node.id) targetNodeId = null;
+            if (linkStartNode && linkStartNode.id === node.id) linkStartNode = null;
+            setStatus(`Removed Node ${node.id}`);
+            break;
+
+        case 'markAffected': {
+            if (!node.affected && !node.carrier) {
+                node.affected = true;
+                node.carrier = false;
+                node.illnessType = illnessMode;
+            } else if (node.affected && !node.carrier) {
+                node.affected = false;
+                node.carrier = true;
+                node.illnessType = illnessMode;
+            } else {
+                node.affected = false;
+                node.carrier = false;
+                node.illnessType = null;
+            }
+            const status = node.affected ? 'affected' : (node.carrier ? 'carrier' : 'clear');
+            setStatus(`Node ${node.id}: ${status}${node.affected || node.carrier ? ' (' + illnessMode + ')' : ''}`);
+            break;
+        }
+
+        case 'target':
+            targetNodeId = node.id;
+            setStatus(`Target → Node ${node.id}`);
+            break;
+    }
+}
+
+function snapToGrid(px, py) {
+    const snapX = Math.round((px - 20) / 30) * 30 + 20;
+    const snapY = Math.round((py - 20) / 30) * 30 + 20;
+    return { x: snapX, y: snapY };
+}
+
+function handleEmptyClick(x, y) {
+    if (currentTool === 'add') {
+        const snapped = snapToGrid(x, y);
+        nodes.push({ id: nextId++, x: snapped.x, y: snapped.y, sex: 'male', affected: false, carrier: false, illnessType: null });
+        setStatus(`Added Node ${nextId - 1}`);
+    }
+    if (currentTool === 'link' || currentTool === 'remove_link') {
+        linkStartNode = null;
+        setStatus('Cancelled. Select a node to start.');
+    }
+}
+
+function wouldCreateCycle(fromId, toId) {
+    // Check if there's already a path from toId to fromId
+    const visited = new Set();
+    const queue = [toId];
+    while (queue.length) {
+        const id = queue.shift();
+        if (id === fromId) return true;  // cycle found — toId is ancestor of fromId
+    }
+    const vis = new Set();
+    const q = [toId];
+    while (q.length) {
+        const cur = q.shift();
+        if (vis.has(cur)) continue;
+        vis.add(cur);
+        for (const l of links) {
+            if (l.from === cur) {
+                if (l.to === fromId) return true;
+                q.push(l.to);
+            }
+        }
+    }
+    return false;
+}
+
+/* ================================================================
+   TOOL MANAGEMENT
+   ================================================================ */
+function setTool(tool) {
+    currentTool = tool;
+    linkStartNode = null;
+
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.querySelector(`.tool-btn[data-tool="${tool}"]`);
+    if (btn) btn.classList.add('active');
+
+    const messages = {
+        add:          'Click canvas to add a node · Click a node to cycle sex',
+        link:         'Click a node, then click another node to link them',
+        remove_link:  'Click a node, then click another node to remove their link',
+        remove:       'Click a node to remove it',
+        target:       'Click a node to set it as calculation target'
+    };
+    setStatus(messages[tool] || '');
+    draw();
+}
+
+function setIllnessTool(mode) {
+    illnessMode = mode;
+    currentTool = 'markAffected';
+    linkStartNode = null;
+
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    const btn = document.querySelector(`.tool-btn[data-tool="${mode}"]`);
+    if (btn) btn.classList.add('active');
+
+    const ind = document.getElementById('mode-indicator');
+    ind.className = '';
+    const labels = { recessive: 'Recessive', dominant: 'Dominant', xlinked: 'X-Linked' };
+    ind.textContent = 'Mode: ' + labels[mode];
+    ind.classList.add('active-' + mode);
+
+    setStatus('Click a node to cycle: affected → carrier → clear');
+    draw();
+}
+
+function setStatus(msg) {
+    document.getElementById('status').textContent = msg;
+}
+
+/* ================================================================
+   HELPER: BUILD MAPS & TOPO SORT
+   ================================================================ */
+/* ================================================================
+   HELPER: BUILD MAPS
+   ================================================================ */
+function buildParentMap() {
+    const m = {};
+    for (const l of links) {
+        if (!m[l.to]) m[l.to] = [];
+        m[l.to].push(l.from);
+    }
+    return m;
+}
+
+function buildChildMap() {
+    const m = {};
+    for (const l of links) {
+        if (!m[l.from]) m[l.from] = [];
+        m[l.from].push(l.to);
+    }
+    return m;
+}
+
+/* ================================================================
+   EXACT GENETIC SOLVER (VARIABLE ELIMINATION)
+   ================================================================ */
+const ALLELE_FREQ = 0.01; // population carrier frequency 'q'
+
+function resolvePedigreeSexes() {
+    const resolved = {};
+    nodes.forEach(n => {
+        resolved[n.id] = n.sex;
+    });
+
+    const pMap = buildParentMap();
+
+    // Propagate parent sexes
+    let changed = true;
+    for (let iter = 0; iter < 10 && changed; iter++) {
+        changed = false;
+        for (const n of nodes) {
+            const parents = pMap[n.id] || [];
+            if (parents.length === 2) {
+                const p1 = parents[0];
+                const p2 = parents[1];
+                const s1 = resolved[p1];
+                const s2 = resolved[p2];
+
+                if (s1 === 'male' && s2 === 'undetermined') {
+                    resolved[p2] = 'female';
+                    changed = true;
+                } else if (s1 === 'female' && s2 === 'undetermined') {
+                    resolved[p2] = 'male';
+                    changed = true;
+                } else if (s2 === 'male' && s1 === 'undetermined') {
+                    resolved[p1] = 'female';
+                    changed = true;
+                } else if (s2 === 'female' && s1 === 'undetermined') {
+                    resolved[p1] = 'male';
+                    changed = true;
+                } else if (s1 === 'undetermined' && s2 === 'undetermined') {
+                    resolved[p1] = 'male';
+                    resolved[p2] = 'female';
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    // Default any remaining undetermined to female
+    nodes.forEach(n => {
+        if (resolved[n.id] === 'undetermined') {
+            resolved[n.id] = 'female';
+        }
+    });
+
+    return resolved;
+}
+
+function validatePedigree(resolvedSexes) {
+    const pMap = buildParentMap();
+    for (const n of nodes) {
+        const parents = pMap[n.id] || [];
+        if (parents.length > 2) {
+            throw new Error(`Node ${n.id} has ${parents.length} parents. Maximum is 2!`);
+        }
+        if (parents.length === 2) {
+            const p1 = parents[0];
+            const p2 = parents[1];
+            if (resolvedSexes[p1] === resolvedSexes[p2]) {
+                throw new Error(`Parents of Node ${n.id} (Nodes ${p1} and ${p2}) cannot have the same sex (${resolvedSexes[p1]}).`);
+            }
+        }
+    }
+}
+
+function getParentsForNode(nodeId, resolvedSexes) {
+    const pMap = buildParentMap();
+    const parents = pMap[nodeId] || [];
+    let fatherId = null;
+    let motherId = null;
+
+    if (parents.length === 1) {
+        const p = parents[0];
+        if (resolvedSexes[p] === 'male') {
+            fatherId = p;
+        } else {
+            motherId = p;
+        }
+    } else if (parents.length === 2) {
+        const p1 = parents[0];
+        const p2 = parents[1];
+        if (resolvedSexes[p1] === 'male') {
+            fatherId = p1;
+            motherId = p2;
+        } else {
+            fatherId = p2;
+            motherId = p1;
+        }
+    }
+    return { fatherId, motherId };
+}
+
+function getDomainSize(nodeId, resolvedSexes) {
+    if (illnessMode === 'xlinked') {
+        return resolvedSexes[nodeId] === 'male' ? 2 : 3;
+    }
+    return 3;
+}
+
+function indexToAssignment(index, vars, resolvedSexes) {
+    const assignment = {};
+    let temp = index;
+    for (let i = vars.length - 1; i >= 0; i--) {
+        const v = vars[i];
+        const dim = getDomainSize(v, resolvedSexes);
+        assignment[v] = temp % dim;
+        temp = Math.floor(temp / dim);
+    }
+    return assignment;
+}
+
+function assignmentToIndex(assignment, vars, resolvedSexes) {
+    let index = 0;
+    for (let i = 0; i < vars.length; i++) {
+        const v = vars[i];
+        const dim = getDomainSize(v, resolvedSexes);
+        index = index * dim + assignment[v];
+    }
+    return index;
+}
+
+function factorMultiply(f1, f2, resolvedSexes) {
+    const varsMap = {};
+    f1.vars.forEach(v => varsMap[v] = true);
+    f2.vars.forEach(v => varsMap[v] = true);
+    const varsOut = Object.keys(varsMap).map(Number).sort((a, b) => a - b);
+
+    let size = 1;
+    for (const v of varsOut) {
+        size *= getDomainSize(v, resolvedSexes);
+    }
+    const valsOut = new Array(size);
+
+    for (let i = 0; i < size; i++) {
+        const assign = indexToAssignment(i, varsOut, resolvedSexes);
+        const idx1 = assignmentToIndex(assign, f1.vars, resolvedSexes);
+        const idx2 = assignmentToIndex(assign, f2.vars, resolvedSexes);
+        valsOut[i] = f1.vals[idx1] * f2.vals[idx2];
+    }
+
+    return { vars: varsOut, vals: valsOut };
+}
+
+function factorSumOut(f, varToSum, resolvedSexes) {
+    const varsOut = f.vars.filter(v => v !== varToSum);
+    
+    let size = 1;
+    for (const v of varsOut) {
+        size *= getDomainSize(v, resolvedSexes);
+    }
+    const valsOut = new Array(size).fill(0);
+
+    const sumVarDim = getDomainSize(varToSum, resolvedSexes);
+
+    for (let i = 0; i < size; i++) {
+        const assign = indexToAssignment(i, varsOut, resolvedSexes);
+        let sum = 0;
+        for (let g = 0; g < sumVarDim; g++) {
+            assign[varToSum] = g;
+            const idx = assignmentToIndex(assign, f.vars, resolvedSexes);
+            sum += f.vals[idx];
+        }
+        valsOut[i] = sum;
+    }
+
+    return { vars: varsOut, vals: valsOut };
+}
+
+function getInheritanceProb(c, f, m, childId, resolvedSexes) {
+    if (illnessMode === 'xlinked') {
+        const childSex = resolvedSexes[childId];
+        let pm = 0;
+        if (m === 0) pm = 1.0;
+        else if (m === 1) pm = 0.5;
+        else if (m === 2) pm = 0.0;
+
+        if (childSex === 'male') {
+            if (c === 0) return pm;
+            if (c === 1) return 1.0 - pm;
+        } else {
+            let pf = (f === 0) ? 1.0 : 0.0;
+            if (c === 0) return pm * pf;
+            if (c === 1) return pm * (1.0 - pf) + (1.0 - pm) * pf;
+            if (c === 2) return (1.0 - pm) * (1.0 - pf);
+        }
+        return 0;
+    } else {
+        let pf = 0;
+        if (f === 0) pf = 1.0;
+        else if (f === 1) pf = 0.5;
+        else if (f === 2) pf = 0.0;
+
+        let pm = 0;
+        if (m === 0) pm = 1.0;
+        else if (m === 1) pm = 0.5;
+        else if (m === 2) pm = 0.0;
+
+        if (c === 0) return pf * pm;
+        if (c === 1) return pf * (1.0 - pm) + (1.0 - pf) * pm;
+        if (c === 2) return (1.0 - pf) * (1.0 - pm);
+        return 0;
+    }
+}
+
+function getPhenotypeEvidence(geno, affected, carrier, sex) {
+    if (carrier) {
+        if (illnessMode === 'recessive' || illnessMode === 'dominant') {
+            return (geno === 1) ? 1.0 : 0.0;
+        } else if (illnessMode === 'xlinked') {
+            return (geno === 1) ? 1.0 : 0.0;
+        }
+    }
+    if (illnessMode === 'recessive') {
+        if (affected) {
+            return (geno === 2) ? 1.0 : 0.0;
+        } else {
+            return (geno === 0 || geno === 1) ? 1.0 : 0.0;
+        }
+    } else if (illnessMode === 'dominant') {
+        if (affected) {
+            return (geno === 0 || geno === 1) ? 1.0 : 0.0;
+        } else {
+            return (geno === 2) ? 1.0 : 0.0;
+        }
+    } else if (illnessMode === 'xlinked') {
+        if (sex === 'male') {
+            if (affected) {
+                return (geno === 1) ? 1.0 : 0.0;
+            } else {
+                return (geno === 0) ? 1.0 : 0.0;
+            }
+        } else {
+            if (affected) {
+                return (geno === 2) ? 1.0 : 0.0;
+            } else {
+                return (geno === 0 || geno === 1) ? 1.0 : 0.0;
+            }
+        }
+    }
+    return 1.0;
+}
+
+function getPhenotypeEvidenceForNode(geno, node, sex) {
+    return getPhenotypeEvidence(geno, node.affected, node.carrier, sex);
+}
+
+function childHasTrait(childNode) {
+    return childNode && (childNode.affected || childNode.carrier);
+}
+
+function runVariableElimination(targetId, excludeEvidenceId = null) {
+    const q = ALLELE_FREQ;
+    const resolved = resolvePedigreeSexes();
+    validatePedigree(resolved);
+
+    const targetNode = nodes.find(n => n.id === targetId);
+    if (!targetNode) return null;
+
+    const childMap = buildChildMap();
+    const parentMap = buildParentMap();
+
+    const factors = [];
+
+    for (const node of nodes) {
+        const parents = parentMap[node.id] || [];
+        let fatherId = null;
+        let motherId = null;
+
+        if (parents.length === 1) {
+            const p = parents[0];
+            if (resolved[p] === 'male') fatherId = p;
+            else motherId = p;
+        } else if (parents.length === 2) {
+            const p1 = parents[0];
+            const p2 = parents[1];
+            if (resolved[p1] === 'male') {
+                fatherId = p1;
+                motherId = p2;
+            } else {
+                fatherId = p2;
+                motherId = p1;
+            }
+        }
+
+        if (fatherId === null && motherId === null) {
+            const dim = getDomainSize(node.id, resolved);
+            const vals = new Array(dim);
+            
+            // Check if this founder is an "entering family member" (assumed not a carrier)
+            const children = childMap[node.id] || [];
+            const hasAffectedChild = children.some(cId => {
+                const childNode = nodes.find(n => n.id === cId);
+                return childHasTrait(childNode);
+            });
+            const isEnteringMember = !node.affected && !node.carrier && !hasAffectedChild;
+
+            for (let c = 0; c < dim; c++) {
+                let prior = 0;
+                if (isEnteringMember && (illnessMode === 'recessive' || illnessMode === 'xlinked')) {
+                    prior = (c === 0) ? 1.0 : 0.0;
+                } else {
+                    if (illnessMode === 'xlinked') {
+                        const sex = resolved[node.id];
+                        if (sex === 'male') {
+                            prior = (c === 0) ? (1 - q) : q;
+                        } else {
+                            prior = (c === 0) ? (1 - q) * (1 - q) : (c === 1) ? 2 * q * (1 - q) : q * q;
+                        }
+                    } else if (illnessMode === 'recessive') {
+                        prior = (c === 0) ? (1 - q) * (1 - q) : (c === 1) ? 2 * q * (1 - q) : q * q;
+                    } else {
+                        if (c === 0) {
+                            prior = ddViable ? q * q : 0.0;
+                        } else if (c === 1) {
+                            prior = 2 * q * (1 - q);
+                        } else {
+                            prior = (1 - q) * (1 - q);
+                        }
+                    }
+                }
+
+                // Apply evidence unless this is the target node or the excluded evidence node
+                const applyEvidence = (node.id !== targetId) && (node.id !== excludeEvidenceId);
+                const ev = applyEvidence ? getPhenotypeEvidenceForNode(c, node, resolved[node.id]) : 1.0;
+                vals[c] = prior * ev;
+            }
+            factors.push({ vars: [node.id], vals });
+        } else {
+            const vars = [node.id];
+            if (fatherId !== null) vars.push(fatherId);
+            if (motherId !== null) vars.push(motherId);
+            vars.sort((a, b) => a - b);
+
+            let size = 1;
+            for (const v of vars) {
+                size *= getDomainSize(v, resolved);
+            }
+            const vals = new Array(size);
+
+            for (let idx = 0; idx < size; idx++) {
+                const assign = indexToAssignment(idx, vars, resolved);
+                const c = assign[node.id];
+
+                let fGenos = [];
+                if (fatherId !== null) {
+                    fGenos.push({ geno: assign[fatherId], prob: 1.0 });
+                } else {
+                    if (illnessMode === 'xlinked') {
+                        fGenos.push({ geno: 0, prob: 1.0 });
+                    } else if (illnessMode === 'recessive') {
+                        fGenos.push({ geno: 0, prob: 1.0 });
+                    } else {
+                        fGenos.push({ geno: 2, prob: 1.0 });
+                    }
+                }
+
+                let mGenos = [];
+                if (motherId !== null) {
+                    mGenos.push({ geno: assign[motherId], prob: 1.0 });
+                } else {
+                    if (illnessMode === 'xlinked' || illnessMode === 'recessive') {
+                        if (node.affected || node.carrier) {
+                            const p0 = (1 - q) / (1 + q);
+                            const p1 = (2 * q) / (1 + q);
+                            mGenos.push({ geno: 0, prob: p0 });
+                            mGenos.push({ geno: 1, prob: p1 });
+                        } else {
+                            mGenos.push({ geno: 0, prob: 1.0 });
+                        }
+                    } else {
+                        mGenos.push({ geno: 2, prob: 1.0 });
+                    }
+                }
+
+                let totalProb = 0;
+                for (const fg of fGenos) {
+                    for (const mg of mGenos) {
+                        const pInherit = getInheritanceProb(c, fg.geno, mg.geno, node.id, resolved);
+                        totalProb += pInherit * fg.prob * mg.prob;
+                    }
+                }
+                if (illnessMode === 'dominant' && c === 0 && !ddViable) {
+                    totalProb = 0.0;
+                }
+
+                // Apply evidence unless this is the target node or the excluded evidence node
+                const applyEvidence = (node.id !== targetId) && (node.id !== excludeEvidenceId);
+                const ev = applyEvidence ? getPhenotypeEvidenceForNode(c, node, resolved[node.id]) : 1.0;
+                vals[idx] = totalProb * ev;
+            }
+            factors.push({ vars, vals });
+        }
+    }
+
+    const allNodeIds = nodes.map(n => n.id);
+    let activeFactors = [...factors];
+
+    for (const nodeId of allNodeIds) {
+        if (nodeId === targetId) continue;
+
+        const related = activeFactors.filter(f => f.vars.includes(nodeId));
+        if (related.length === 0) continue;
+
+        activeFactors = activeFactors.filter(f => !f.vars.includes(nodeId));
+
+        let prod = related[0];
+        for (let i = 1; i < related.length; i++) {
+            prod = factorMultiply(prod, related[i], resolved);
+        }
+
+        const summed = factorSumOut(prod, nodeId, resolved);
+        activeFactors.push(summed);
+    }
+
+    if (activeFactors.length === 0) return null;
+    let finalFactor = activeFactors[0];
+    for (let i = 1; i < activeFactors.length; i++) {
+        finalFactor = factorMultiply(finalFactor, activeFactors[i], resolved);
+    }
+
+    const sum = finalFactor.vals.reduce((a, b) => a + b, 0);
+    if (sum === 0) {
+        return { inconsistent: true };
+    }
+
+    const normalizedVals = finalFactor.vals.map(v => v / sum);
+    return {
+        probs: normalizedVals,
+        inconsistent: false,
+        resolvedSexes: resolved
+    };
+}
+
+function showDominantViabilityDialog() {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'win95-modal-overlay';
+        
+        const dialog = document.createElement('div');
+        dialog.className = 'win95-dialog';
+        
+        dialog.innerHTML = `
+            <div class="win95-dialog-titlebar">
+                <h2>Dominant Viability Check</h2>
+                <div class="win95-dialog-close" id="win95-dialog-close-btn">✕</div>
+            </div>
+            <div class="win95-dialog-content">
+                <div class="win95-dialog-icon">❓</div>
+                <div>
+                    Is the homozygous dominant (DD) genotype viable for this disorder?<br><br>
+                    Select <strong>No</strong> for lethal disorders (e.g. Achondroplasia/Dwarfism) to make P(DD) = 0.
+                </div>
+            </div>
+            <div class="win95-dialog-buttons">
+                <button class="win95-btn" id="win95-btn-yes">Yes (Viable)</button>
+                <button class="win95-btn" id="win95-btn-no">No (Lethal)</button>
+            </div>
+        `;
+        
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        
+        const cleanUp = (value) => {
+            document.body.removeChild(overlay);
+            resolve(value);
+        };
+        
+        document.getElementById('win95-btn-yes').onclick = () => cleanUp(true);
+        document.getElementById('win95-btn-no').onclick = () => cleanUp(false);
+        document.getElementById('win95-dialog-close-btn').onclick = () => cleanUp(true);
+    });
+}
+
+function calculatePedigreeProbabilities() {
+    if (!targetNodeId) return null;
+    const targetNode = nodes.find(n => n.id === targetNodeId);
+    if (!targetNode) return null;
+
+    const resolved = resolvePedigreeSexes();
+    if (illnessMode === 'xlinked' && targetNode.sex === 'undetermined') {
+        throw new Error("Target node's sex must be explicitly set to Male or Female for X-linked recessive calculation.");
+    }
+
+    const targetRes = runVariableElimination(targetNodeId);
+    if (!targetRes) return null;
+    if (targetRes.inconsistent) return { inconsistent: true };
+
+    const targetSex = resolved[targetNodeId];
+    const q = ALLELE_FREQ;
+    let explanationPrior = '';
+    let explanationCond = '';
+
+    function formatProb(val) {
+        const frac = formatFraction(val);
+        if (frac && frac.den <= 10000) {
+            return frac.num === 0 ? '0' : (frac.num === frac.den ? '1' : `${frac.num}/${frac.den}`);
+        }
+        return val.toFixed(4);
+    }
+
+    const { fatherId, motherId } = getParentsForNode(targetNodeId, resolved);
+
+    if (fatherId === null && motherId === null) {
+        const children = buildChildMap()[targetNodeId] || [];
+        const hasAffectedChild = children.some(cId => {
+            const childNode = nodes.find(n => n.id === cId);
+            return childHasTrait(childNode);
+        });
+        const isEntering = !targetNode.affected && !targetNode.carrier && !hasAffectedChild;
+
+        if (isEntering) {
+            explanationPrior = `Target is an entering family member with no affected children.\nGenetics rule: Assume they do not carry any recessive gene.\n\nPrior Probabilities:\nP(Homozygous normal) = 100%\nP(Carrier) = 0%\nP(Affected) = 0%`;
+        } else {
+            explanationPrior = `Target is a founder node (no parents in pedigree).\nGenetics rule: Use general population frequencies (carrier freq q = ${q}).\n\nPrior Probabilities:\n`;
+            if (illnessMode === 'recessive') {
+                explanationPrior += `P(AA) = (1-q)² = (0.99)² = 98.01%\nP(Aa) = 2q(1-q) = 2*0.01*0.99 = 1.98%\nP(aa) = q² = (0.01)² = 0.01%`;
+            } else if (illnessMode === 'dominant') {
+                if (ddViable) {
+                    explanationPrior += `P(DD) = q² = (0.01)² = 0.01%\nP(Dd) = 2q(1-q) = 2*0.01*0.99 = 1.98%\nP(dd) = (1-q)² = (0.99)² = 98.01%`;
+                } else {
+                    const sum_raw = 2 * q * (1 - q) + (1 - q) * (1 - q);
+                    const pDd_norm = 2 * q * (1 - q) / sum_raw;
+                    const pdd_norm = (1 - q) * (1 - q) / sum_raw;
+                    explanationPrior += `P(DD) = 0 (Lethal)\n` +
+                        `P(Dd) [raw] = 2q(1-q) = 1.98%\n` +
+                        `P(dd) [raw] = (1-q)² = 98.01%\n\n` +
+                        `Normalized Probabilities (excluding lethal DD):\n` +
+                        `P(Dd) = 1.98% ÷ 99.99% = ${(pDd_norm * 100).toFixed(2)}%\n` +
+                        `P(dd) = 98.01% ÷ 99.99% = ${(pdd_norm * 100).toFixed(2)}%`;
+                }
+            } else if (illnessMode === 'xlinked') {
+                if (targetSex === 'male') {
+                    explanationPrior += `P(XᴬY) = 1-q = 99.0%\nP(XᵃY) = q = 1.0%`;
+                } else {
+                    explanationPrior += `P(XᴬXᴬ) = (1-q)² = 98.01%\nP(XᴬXᵃ) = 2q(1-q) = 1.98%\nP(XᵃXᵃ) = q² = 0.01%`;
+                }
+            }
+        }
+    } else {
+        let f0 = 0, f1 = 0, f2 = 0;
+        if (fatherId !== null) {
+            const fatherRes = runVariableElimination(fatherId, targetNodeId);
+            if (fatherRes && !fatherRes.inconsistent) {
+                const raw0 = fatherRes.probs[0] || 0;
+                const raw1 = fatherRes.probs[1] || 0;
+                const raw2 = fatherRes.probs[2] || 0;
+                const fatherNode = nodes.find(n => n.id === fatherId);
+                const ev0 = getPhenotypeEvidenceForNode(0, fatherNode, resolved[fatherId]);
+                const ev1 = getPhenotypeEvidenceForNode(1, fatherNode, resolved[fatherId]);
+                const ev2 = getPhenotypeEvidenceForNode(2, fatherNode, resolved[fatherId]);
+                const w0 = raw0 * ev0;
+                const w1 = raw1 * ev1;
+                const w2 = raw2 * ev2;
+                const wSum = w0 + w1 + w2;
+                if (wSum > 0) {
+                    f0 = w0 / wSum;
+                    f1 = w1 / wSum;
+                    f2 = w2 / wSum;
+                } else {
+                    f0 = raw0; f1 = raw1; f2 = raw2;
+                }
+            }
+        } else {
+            if (illnessMode === 'xlinked' || illnessMode === 'recessive') f0 = 1.0;
+            else f2 = 1.0;
+        }
+
+        let m0 = 0, m1 = 0, m2 = 0;
+        if (motherId !== null) {
+            const motherRes = runVariableElimination(motherId, targetNodeId);
+            if (motherRes && !motherRes.inconsistent) {
+                const raw0 = motherRes.probs[0] || 0;
+                const raw1 = motherRes.probs[1] || 0;
+                const raw2 = motherRes.probs[2] || 0;
+                const motherNode = nodes.find(n => n.id === motherId);
+                const ev0 = getPhenotypeEvidenceForNode(0, motherNode, resolved[motherId]);
+                const ev1 = getPhenotypeEvidenceForNode(1, motherNode, resolved[motherId]);
+                const ev2 = getPhenotypeEvidenceForNode(2, motherNode, resolved[motherId]);
+                const w0 = raw0 * ev0;
+                const w1 = raw1 * ev1;
+                const w2 = raw2 * ev2;
+                const wSum = w0 + w1 + w2;
+                if (wSum > 0) {
+                    m0 = w0 / wSum;
+                    m1 = w1 / wSum;
+                    m2 = w2 / wSum;
+                } else {
+                    m0 = raw0; m1 = raw1; m2 = raw2;
+                }
+            }
+        } else {
+            if (illnessMode === 'xlinked' || illnessMode === 'recessive') {
+                if (targetNode.affected || targetNode.carrier) {
+                    m0 = (1 - q) / (1 + q);
+                    m1 = (2 * q) / (1 + q);
+                } else {
+                    m0 = 1.0;
+                }
+            } else {
+                m2 = 1.0;
+            }
+        }
+
+        const fp = formatProb;
+
+        if (illnessMode === 'recessive') {
+            const p_f = f0 + 0.5 * f1;
+            const q_f = f2 + 0.5 * f1;
+            const p_m = m0 + 0.5 * m1;
+            const q_m = m2 + 0.5 * m1;
+
+            const P_AA = p_f * p_m;
+            const P_Aa = p_f * q_m + q_f * p_m;
+            const P_aa = q_f * q_m;
+
+            explanationPrior = `Parent Probabilities (excluding Target's phenotype):\n` +
+                `Father (Node ${fatherId || 'Missing'}): AA=${fp(f0)}, Aa=${fp(f1)}, aa=${fp(f2)}\n` +
+                `Mother (Node ${motherId || 'Missing'}): AA=${fp(m0)}, Aa=${fp(m1)}, aa=${fp(m2)}\n\n` +
+                `Transmission Probabilities (chance of passing 'A' allele):\n` +
+                `Father passes A (p_f) = P(AA) + 0.5*P(Aa) = ${fp(f0)} + 0.5*${fp(f1)} = ${fp(p_f)}\n` +
+                `Mother passes A (p_m) = P(AA) + 0.5*P(Aa) = ${fp(m0)} + 0.5*${fp(m1)} = ${fp(p_m)}\n\n` +
+                `Mendelian Combinations for Target:\n` +
+                `P(AA) = p_f * p_m = ${fp(p_f)} * ${fp(p_m)} = ${fp(P_AA)}\n` +
+                `P(Aa) = p_f*(1-p_m) + (1-p_f)*p_m\n` +
+                `      = ${fp(p_f)}*${fp(q_m)} + ${fp(q_f)}*${fp(p_m)} = ${fp(P_Aa)}\n` +
+                `P(aa) = (1-p_f)*(1-p_m) = ${fp(q_f)} * ${fp(q_m)} = ${fp(P_aa)}`;
+
+            if (targetNode.carrier) {
+                explanationCond = `Target is a known carrier. Genotype must be heterozygous (Aa).\n\nP(Aa | carrier) = 100%`;
+            } else if (!targetNode.affected) {
+                const sumNormal = P_AA + P_Aa;
+                const cond_AA = sumNormal > 0 ? P_AA / sumNormal : 0.5;
+                const cond_Aa = sumNormal > 0 ? P_Aa / sumNormal : 0.5;
+
+                explanationCond = `Target is unaffected. We condition by excluding the affected (aa) genotype.\n\n` +
+                    `P(Unaffected) = P(AA) + P(Aa) = ${fp(P_AA)} + ${fp(P_Aa)} = ${fp(sumNormal)}\n\n` +
+                    `Conditioned Probabilities:\n` +
+                    `P(AA | unaffected) = P(AA) / P(Unaffected) = ${fp(P_AA)} ÷ ${fp(sumNormal)} = ${fp(cond_AA)}\n` +
+                    `P(Aa | unaffected) = P(Aa) / P(Unaffected) = ${fp(P_Aa)} ÷ ${fp(sumNormal)} = ${fp(cond_Aa)}`;
+            }
+        } else if (illnessMode === 'dominant') {
+            const p_f = f0 + 0.5 * f1;
+            const q_f = f2 + 0.5 * f1;
+            const p_m = m0 + 0.5 * m1;
+            const q_m = m2 + 0.5 * m1;
+
+            const P_DD = ddViable ? p_f * p_m : 0.0;
+            const P_Dd_raw = p_f * q_m + q_f * p_m;
+            const P_dd_raw = q_f * q_m;
+
+            // Re-normalize if DD is lethal
+            const sum_raw = P_Dd_raw + P_dd_raw;
+            const P_Dd = sum_raw > 0 ? P_Dd_raw / sum_raw : 0.0;
+            const P_dd = sum_raw > 0 ? P_dd_raw / sum_raw : 0.0;
+
+            if (ddViable) {
+                explanationPrior = `Parent Probabilities (excluding Target's phenotype):\n` +
+                    `Father (Node ${fatherId || 'Missing'}): DD=${fp(f0)}, Dd=${fp(f1)}, dd=${fp(f2)}\n` +
+                    `Mother (Node ${motherId || 'Missing'}): DD=${fp(m0)}, Dd=${fp(m1)}, dd=${fp(m2)}\n\n` +
+                    `Transmission Probabilities (chance of passing 'D' allele):\n` +
+                    `Father passes D (p_f) = P(DD) + 0.5*P(Dd) = ${fp(f0)} + 0.5*${fp(f1)} = ${fp(p_f)}\n` +
+                    `Mother passes D (p_m) = P(DD) + 0.5*P(Dd) = ${fp(m0)} + 0.5*${fp(m1)} = ${fp(p_m)}\n\n` +
+                    `Mendelian Combinations for Target:\n` +
+                    `P(DD) = p_f * p_m = ${fp(p_f)} * ${fp(p_m)} = ${fp(P_DD)}\n` +
+                    `P(Dd) = p_f*(1-p_m) + (1-p_f)*p_m\n` +
+                    `      = ${fp(p_f)}*${fp(q_m)} + ${fp(q_f)}*${fp(p_m)} = ${fp(P_Dd)}\n` +
+                    `P(dd) = (1-p_f)*(1-p_m) = ${fp(q_f)} * ${fp(q_m)} = ${fp(P_dd)}`;
+            } else {
+                explanationPrior = `Parent Probabilities (excluding Target's phenotype):\n` +
+                    `Father (Node ${fatherId || 'Missing'}): DD=0 (Lethal), Dd=${fp(f1)}, dd=${fp(f2)}\n` +
+                    `Mother (Node ${motherId || 'Missing'}): DD=0 (Lethal), Dd=${fp(m1)}, dd=${fp(m2)}\n\n` +
+                    `Transmission Probabilities (chance of passing 'D' allele):\n` +
+                    `Father passes D (p_f) = 0.5*P(Dd) = 0.5*${fp(f1)} = ${fp(p_f)}\n` +
+                    `Mother passes D (p_m) = 0.5*P(Dd) = 0.5*${fp(m1)} = ${fp(p_m)}\n\n` +
+                    `Mendelian Combinations (DD is Lethal):\n` +
+                    `P(DD) = 0\n` +
+                    `P(Dd) [raw] = p_f*(1-p_m) + (1-p_f)*p_m\n` +
+                    `            = ${fp(p_f)}*${fp(q_m)} + ${fp(q_f)}*${fp(p_m)} = ${fp(P_Dd_raw)}\n` +
+                    `P(dd) [raw] = (1-p_f)*(1-p_m) = ${fp(q_f)} * ${fp(q_m)} = ${fp(P_dd_raw)}\n\n` +
+                    `Normalized Probabilities (excluding lethal DD):\n` +
+                    `P(Dd) = P(Dd)_raw ÷ (P(Dd)_raw + P(dd)_raw) = ${fp(P_Dd_raw)} ÷ ${fp(sum_raw)} = ${fp(P_Dd)}\n` +
+                    `P(dd) = P(dd)_raw ÷ (P(Dd)_raw + P(dd)_raw) = ${fp(P_dd_raw)} ÷ ${fp(sum_raw)} = ${fp(P_dd)}`;
+            }
+
+            if (targetNode.carrier) {
+                explanationCond = `Target is a known heterozygous carrier. Genotype must be Dd.\n\nP(Dd | carrier) = 100%`;
+            } else if (!targetNode.affected) {
+                explanationCond = `Target is unaffected. Under dominant inheritance, unaffected individuals must have genotype dd (100%).`;
+            }
+        } else if (illnessMode === 'xlinked') {
+            if (targetSex === 'male') {
+                const p_m = m0 + 0.5 * m1;
+                const q_m = m2 + 0.5 * m1;
+                const P_A = p_m;
+                const P_a = q_m;
+
+                explanationPrior = `Parent Probabilities (excluding Target's phenotype):\n` +
+                    `Mother (Node ${motherId || 'Missing'}): XᴬXᴬ=${fp(m0)}, XᴬXᵃ=${fp(m1)}, XᵃXᵃ=${fp(m2)}\n\n` +
+                    `Target male inherits X from mother and Y from father:\n` +
+                    `P(XᴬY) = P(Mother passes Xᴬ) = P(XᴬXᴬ) + 0.5*P(XᴬXᵃ) = ${fp(m0)} + 0.5*${fp(m1)} = ${fp(P_A)}\n` +
+                    `P(XᵃY) = P(Mother passes Xᵃ) = P(XᵃXᵃ) + 0.5*P(XᴬXᵃ) = ${fp(m2)} + 0.5*${fp(m1)} = ${fp(P_a)}`;
+
+                if (targetNode.carrier) {
+                    explanationCond = `Target is a known carrier. Genotype must be XᵃY.\n\nP(XᵃY | carrier) = 100%`;
+                } else if (!targetNode.affected) {
+                    explanationCond = `Target is unaffected. Under X-linked recessive, an unaffected male must have genotype XᴬY (100%).`;
+                }
+            } else {
+                const p_f = f0;
+                const q_f = f1;
+                const p_m = m0 + 0.5 * m1;
+                const q_m = m2 + 0.5 * m1;
+
+                const P_AA = p_f * p_m;
+                const P_Aa = p_f * q_m + q_f * p_m;
+                const P_aa = q_f * q_m;
+
+                explanationPrior = `Parent Probabilities (excluding Target's phenotype):\n` +
+                    `Father (Node ${fatherId || 'Missing'}): XᴬY=${fp(f0)}, XᵃY=${fp(f1)}\n` +
+                    `Mother (Node ${motherId || 'Missing'}): XᴬXᴬ=${fp(m0)}, XᴬXᵃ=${fp(m1)}, XᵃXᵃ=${fp(m2)}\n\n` +
+                    `Transmission Probabilities (chance of passing 'Xᴬ' allele):\n` +
+                    `Father passes Xᴬ (p_f) = P(XᴬY) = ${fp(f0)}\n` +
+                    `Mother passes Xᴬ (p_m) = P(XᴬXᴬ) + 0.5*P(XᴬXᵃ) = ${fp(m0)} + 0.5*${fp(m1)} = ${fp(p_m)}\n\n` +
+                    `Mendelian Combinations for Target:\n` +
+                    `P(XᴬXᴬ) = p_f * p_m = ${fp(p_f)} * ${fp(p_m)} = ${fp(P_AA)}\n` +
+                    `P(XᴬXᵃ) = p_f*(1-p_m) + (1-p_f)*p_m\n` +
+                    `        = ${fp(p_f)}*${fp(q_m)} + ${fp(q_f)}*${fp(p_m)} = ${fp(P_Aa)}\n` +
+                    `P(XᵃXᵃ) = (1-p_f)*(1-p_m) = ${fp(q_f)} * ${fp(q_m)} = ${fp(P_aa)}`;
+
+                if (targetNode.carrier) {
+                    explanationCond = `Target is a known carrier. Genotype must be XᴬXᵃ.\n\nP(XᴬXᵃ | carrier) = 100%`;
+                } else if (!targetNode.affected) {
+                    const sumNormal = P_AA + P_Aa;
+                    const cond_AA = sumNormal > 0 ? P_AA / sumNormal : 0.5;
+                    const cond_Aa = sumNormal > 0 ? P_Aa / sumNormal : 0.5;
+
+                    explanationCond = `Target is unaffected. We condition by excluding the affected (XᵃXᵃ) genotype.\n\n` +
+                        `P(Unaffected) = P(XᴬXᴬ) + P(XᴬXᵃ) = ${fp(P_AA)} + ${fp(P_Aa)} = ${fp(sumNormal)}\n\n` +
+                        `Conditioned Probabilities:\n` +
+                        `P(XᴬXᴬ | unaffected) = P(XᴬXᴬ) / P(Unaffected) = ${fp(P_AA)} ÷ ${fp(sumNormal)} = ${fp(cond_AA)}\n` +
+                        `P(XᴬXᵃ | unaffected) = P(XᴬXᵃ) / P(Unaffected) = ${fp(P_Aa)} ÷ ${fp(sumNormal)} = ${fp(cond_Aa)}`;
+                }
+            }
+        }
+    }
+
+    return {
+        inconsistent: false,
+        probs: targetRes.probs,
+        resolvedSexes: resolved,
+        explanationPrior: explanationPrior,
+        explanationCond: explanationCond
+    };
+}
+
+/* ================================================================
+   PRESETS & CANVAS ACTIONS
+   ================================================================ */
+function clearCanvas() {
+    nodes = [];
+    links = [];
+    nextId = 1;
+    targetNodeId = null;
+    linkStartNode = null;
+    document.getElementById('results').innerHTML = '';
+    setStatus('Canvas cleared');
+    draw();
+}
+
+function loadSample(presetName) {
+    clearCanvas();
+    if (presetName === 'recessive_carrier') {
+        nodes = [
+            { id: 1, x: 250, y: 120, sex: 'male', affected: false, carrier: false, illnessType: null },
+            { id: 2, x: 390, y: 120, sex: 'female', affected: false, carrier: true, illnessType: 'recessive' },
+            { id: 3, x: 250, y: 260, sex: 'male', affected: true, carrier: false, illnessType: 'recessive' },
+            { id: 4, x: 390, y: 260, sex: 'female', affected: false, carrier: false, illnessType: null }
+        ];
+        links = [
+            { from: 1, to: 3 },
+            { from: 2, to: 3 },
+            { from: 1, to: 4 },
+            { from: 2, to: 4 }
+        ];
+        nextId = 5;
+        targetNodeId = 4;
+        setIllnessTool('recessive');
+        setStatus('Loaded Autosomal Recessive Carrier preset. Node 4 is target.');
+    } else if (presetName === 'dominant_huntington') {
+        nodes = [
+            { id: 1, x: 250, y: 120, sex: 'male', affected: true, carrier: false, illnessType: 'dominant' },
+            { id: 2, x: 390, y: 120, sex: 'female', affected: false, carrier: false, illnessType: null },
+            { id: 3, x: 250, y: 260, sex: 'female', affected: false, carrier: false, illnessType: null },
+            { id: 4, x: 390, y: 260, sex: 'male', affected: false, carrier: false, illnessType: null }
+        ];
+        links = [
+            { from: 1, to: 3 },
+            { from: 2, to: 3 },
+            { from: 1, to: 4 },
+            { from: 2, to: 4 }
+        ];
+        nextId = 5;
+        targetNodeId = 3;
+        setIllnessTool('dominant');
+        setStatus("Loaded Autosomal Dominant (Huntington's) preset. Node 3 is target.");
+    } else if (presetName === 'xlinked_cb') {
+        nodes = [
+            { id: 1, x: 250, y: 120, sex: 'male', affected: false, carrier: false, illnessType: null },
+            { id: 2, x: 390, y: 120, sex: 'female', affected: false, carrier: true, illnessType: 'xlinked' },
+            { id: 3, x: 250, y: 260, sex: 'male', affected: true, carrier: false, illnessType: 'xlinked' },
+            { id: 4, x: 390, y: 260, sex: 'female', affected: false, carrier: false, illnessType: null }
+        ];
+        links = [
+            { from: 1, to: 3 },
+            { from: 2, to: 3 },
+            { from: 1, to: 4 },
+            { from: 2, to: 4 }
+        ];
+        nextId = 5;
+        targetNodeId = 4;
+        setIllnessTool('xlinked');
+        setStatus('Loaded X-Linked Recessive (Color Blindness) preset. Node 4 is target.');
+    }
+    draw();
+}
+
+/* ================================================================
+   RUN & DISPLAY RESULTS
+   ================================================================ */
+async function runCalculation() {
+    correctLinkDirections(); // Auto-correct reverse links
+    const res = document.getElementById('results');
+
+    if (!illnessMode) {
+        res.innerHTML = '<div class="result-error">⚠ Select an inheritance mode first (Recessive, Dominant, or X-Linked).</div>';
+        return;
+    }
+    if (!targetNodeId || !nodes.find(n => n.id === targetNodeId)) {
+        res.innerHTML = '<div class="result-error">⚠ Select a target node first.</div>';
+        return;
+    }
+    const target = nodes.find(n => n.id === targetNodeId);
+
+    if (illnessMode === 'dominant') {
+        ddViable = await showDominantViabilityDialog();
+    } else {
+        ddViable = true;
+    }
+
+    let result;
+    try {
+        result = calculatePedigreeProbabilities();
+    } catch (err) {
+        res.innerHTML = `<div class="result-error">⚠ Validation Error: ${err.message}</div>`;
+        return;
+    }
+
+    if (!result) {
+        res.innerHTML = '<div class="result-error">⚠ Could not compute — check pedigree structure.</div>';
+        return;
+    }
+
+    if (result.inconsistent) {
+        res.innerHTML = '<div class="result-error">⚠ Inconsistent pedigree! The observed phenotypes are genetically impossible under this inheritance mode.</div>';
+        return;
+    }
+
+    const { probs, resolvedSexes, explanationPrior, explanationCond } = result;
+    const targetSex = resolvedSexes[targetNodeId];
+
+    let html = `<div class="results-title">Node ${targetNodeId} · ${targetSex}</div>`;
+
+    if (illnessMode === 'recessive') {
+        const [pAA, pAa, paa] = probs;
+        
+        // 1. Prior Section
+        html += '<div class="result-section">';
+        html += '<div class="result-section-title">Prior Probabilities</div>';
+        html += probRow('Homozygous normal (AA)', pAA, '#34d399', explanationPrior);
+        html += probRow('Carrier (Aa)', pAa, '#fbbf24', explanationPrior);
+        html += probRow('Affected (aa)', paa, '#f87171', explanationPrior);
+        html += '</div>';
+
+        // 2. Conditioned Section
+        if (target.carrier) {
+            html += '<div class="result-section">';
+            html += '<div class="result-section-title conditioned">If Carrier (Conditioned)</div>';
+            html += probRow('Carrier (Aa)', 1.0, '#fbbf24', explanationCond);
+            html += '</div>';
+        } else if (!target.affected) {
+            const sumNormal = pAA + pAa;
+            const condAA = sumNormal > 0 ? pAA / sumNormal : 0.5;
+            const condAa = sumNormal > 0 ? pAa / sumNormal : 0.5;
+
+            html += '<div class="result-section">';
+            html += '<div class="result-section-title conditioned">If Unaffected (Conditioned)</div>';
+            html += probRow('Homozygous normal (AA)', condAA, '#34d399', explanationCond);
+            html += probRow('Carrier (Aa)', condAa, '#fbbf24', explanationCond);
+            html += '</div>';
+        }
+
+    } else if (illnessMode === 'dominant') {
+        const [pDD, pDd, pdd] = probs;
+
+        // 1. Prior Section
+        html += '<div class="result-section">';
+        html += '<div class="result-section-title">Prior Probabilities</div>';
+        html += probRow('Homo. affected (DD)', pDD, '#f87171', explanationPrior);
+        html += probRow('Hetero. affected (Dd)', pDd, '#fbbf24', explanationPrior);
+        html += probRow('Unaffected (dd)', pdd, '#34d399', explanationPrior);
+        html += '</div>';
+
+        // 2. Conditioned Section
+        if (target.carrier) {
+            html += '<div class="result-section">';
+            html += '<div class="result-section-title conditioned">If Carrier (Conditioned)</div>';
+            html += probRow('Hetero. affected (Dd)', 1.0, '#fbbf24', explanationCond);
+            html += '</div>';
+        } else if (!target.affected) {
+            html += '<div class="result-section">';
+            html += '<div class="result-section-title conditioned">If Unaffected (Conditioned)</div>';
+            html += probRow('Unaffected (dd)', 1.0, '#34d399', explanationCond);
+            html += '</div>';
+        }
+
+    } else {
+        // X-linked Recessive
+        if (targetSex === 'male') {
+            const [pA, pa] = probs;
+
+            // 1. Prior Section
+            html += '<div class="result-section">';
+            html += '<div class="result-section-title">Prior Probabilities</div>';
+            html += probRow('Normal (X<sup>A</sup>Y)', pA, '#34d399', explanationPrior);
+            html += probRow('Affected (X<sup>a</sup>Y)', pa, '#f87171', explanationPrior);
+            html += '</div>';
+
+            // 2. Conditioned Section
+            if (target.carrier) {
+                html += '<div class="result-section">';
+                html += '<div class="result-section-title conditioned">If Carrier (Conditioned)</div>';
+                html += probRow('Affected (X<sup>a</sup>Y)', 1.0, '#f87171', explanationCond);
+                html += '</div>';
+            } else if (!target.affected) {
+                html += '<div class="result-section">';
+                html += '<div class="result-section-title conditioned">If Unaffected (Conditioned)</div>';
+                html += probRow('Normal (X<sup>A</sup>Y)', 1.0, '#34d399', explanationCond);
+                html += '</div>';
+            }
+        } else {
+            const [pAA, pAa, paa] = probs;
+
+            // 1. Prior Section
+            html += '<div class="result-section">';
+            html += '<div class="result-section-title">Prior Probabilities</div>';
+            html += probRow('Normal (X<sup>A</sup>X<sup>A</sup>)', pAA, '#34d399', explanationPrior);
+            html += probRow('Carrier (X<sup>A</sup>X<sup>a</sup>)', pAa, '#fbbf24', explanationPrior);
+            html += probRow('Affected (X<sup>a</sup>X<sup>a</sup>)', paa, '#f87171', explanationPrior);
+            html += '</div>';
+
+            // 2. Conditioned Section
+            if (target.carrier) {
+                html += '<div class="result-section">';
+                html += '<div class="result-section-title conditioned">If Carrier (Conditioned)</div>';
+                html += probRow('Carrier (X<sup>A</sup>X<sup>a</sup>)', 1.0, '#fbbf24', explanationCond);
+                html += '</div>';
+            } else if (!target.affected) {
+                const sumNormal = pAA + pAa;
+                const condAA = sumNormal > 0 ? pAA / sumNormal : 0.5;
+                const condAa = sumNormal > 0 ? pAa / sumNormal : 0.5;
+
+                html += '<div class="result-section">';
+                html += '<div class="result-section-title conditioned">If Unaffected (Conditioned)</div>';
+                html += probRow('Normal (X<sup>A</sup>X<sup>A</sup>)', condAA, '#34d399', explanationCond);
+                html += probRow('Carrier (X<sup>A</sup>X<sup>a</sup>)', condAa, '#fbbf24', explanationCond);
+                html += '</div>';
+            }
+        }
+    }
+
+    res.innerHTML = html;
+}
+
+function formatFraction(value) {
+    if (!Number.isFinite(value)) return null;
+    if (value < 1e-12) return { num: 0, den: 1 };
+    if (Math.abs(value - 1) < 1e-12) return { num: 1, den: 1 };
+
+    const gcd = (a, b) => b ? gcd(b, a % b) : a;
+    let bestNum = 0;
+    let bestDen = 1;
+    let bestErr = Math.abs(value);
+    const maxDen = 10000;
+
+    for (let den = 1; den <= maxDen; den++) {
+        const num = Math.round(value * den);
+        const err = Math.abs(value - num / den);
+        if (err < bestErr) {
+            bestErr = err;
+            bestNum = num;
+            bestDen = den;
+            if (err < 1e-11) break;
+        }
+    }
+
+    if (bestNum === 0) return { num: 0, den: 1 };
+    if (bestNum === bestDen) return { num: 1, den: 1 };
+    const divisor = gcd(Math.abs(bestNum), bestDen);
+    return { num: bestNum / divisor, den: bestDen / divisor };
+}
+
+function probRow(label, value, color, formula = '') {
+    const frac = formatFraction(value);
+    let pct, fracStr, tooltip;
+    
+    if (frac) {
+        fracStr = frac.num === 0 ? '0' : (frac.num === frac.den ? '1' : `${frac.num}/${frac.den}`);
+        pct = (frac.num / frac.den * 100).toFixed(1);
+        tooltip = formula || `${frac.num} ÷ ${frac.den} = ${value.toFixed(6)}`;
+    } else {
+        pct = (value * 100).toFixed(1);
+        fracStr = '';
+        tooltip = formula || `Value: ${value.toFixed(6)}`;
+    }
+    
+    const escapedTooltip = tooltip.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    
+    return `<div class="result-row" title="${escapedTooltip}"><span>${label}</span><span>${pct}%` + (fracStr ? ` (${fracStr})` : '') + `</span></div>`
+         + `<div class="result-bar"><div style="width:${pct}%;background:${color}"></div></div>`;
+}
+
+/* ================================================================
+   INIT
+   ================================================================ */
+setTool('add');
+</script>
+</body>
+</html>

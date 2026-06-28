@@ -1,0 +1,2188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UPGMA Phylogenetic Tree Calculator</title>
+    <meta name="description" content="Calculate UPGMA phylogenetic trees step by step from a distance matrix. View intermediate matrices and exact calculations on hover.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Tahoma', 'Arial', sans-serif;
+            background: #c0c0c0;
+            color: #000000;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* ── Classic Windows Titlebar ── */
+        header {
+            background: linear-gradient(90deg, #000080 0%, #1084d0 100%);
+            padding: 4px 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 13px;
+            flex-shrink: 0;
+            border-bottom: 2px solid #808080;
+        }
+        header h1 {
+            font-size: 13px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+        header .subtitle {
+            font-size: 10px;
+            color: #d4d0c8;
+            font-weight: normal;
+        }
+
+        /* ── Main Layout ── */
+        main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            padding: 4px;
+            gap: 4px;
+            background: #808080;
+        }
+
+        /* ── Sidebar ── */
+        #sidebar {
+            width: 220px;
+            min-width: 220px;
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            padding: 6px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            scrollbar-width: thin;
+        }
+
+        .section-label {
+            font-size: 9px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #000000;
+            margin: 4px 0 2px 2px;
+            border-bottom: 1px solid #808080;
+            padding-bottom: 2px;
+        }
+        .section-label:first-child { margin-top: 0; }
+
+        .sep {
+            height: 2px;
+            background: #808080;
+            border-bottom: 1px solid #ffffff;
+            margin: 4px 0;
+        }
+
+        /* ── Classic Windows 3D Buttons ── */
+        .tool-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 8px;
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            color: #000000;
+            cursor: pointer;
+            font-size: 11px;
+            font-family: inherit;
+            font-weight: bold;
+            outline: none;
+            text-align: left;
+            width: 100%;
+        }
+        .tool-btn:hover { background: #e0ded9; }
+        .tool-btn:active {
+            border-color: #808080 #ffffff #ffffff #808080 !important;
+            background: #c0c0c0 !important;
+            padding: 6px 7px 4px 9px;
+        }
+        .tool-btn .icon {
+            font-size: 13px;
+            width: 16px;
+            text-align: center;
+            flex-shrink: 0;
+            font-weight: bold;
+        }
+
+        /* ── Input Controls ── */
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 4px;
+        }
+        .input-row label {
+            font-size: 11px;
+            font-weight: bold;
+            min-width: 70px;
+        }
+        .win-input {
+            background: #ffffff;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080;
+            font-family: inherit;
+            font-size: 11px;
+            padding: 2px 4px;
+            color: #000000;
+            outline: none;
+            flex: 1;
+        }
+        .win-input:focus {
+            background: #ffffff;
+            border-color: #000080 #ffffff #ffffff #000080;
+        }
+
+        .win-select {
+            background: #ffffff;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080;
+            font-family: inherit;
+            font-size: 11px;
+            padding: 2px 4px;
+            color: #000000;
+            outline: none;
+            flex: 1;
+            cursor: pointer;
+        }
+
+        /* Run button */
+        .run-btn {
+            margin-top: 4px;
+            padding: 6px;
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            color: #000000;
+            font-weight: bold;
+            font-size: 11px;
+            font-family: inherit;
+            cursor: pointer;
+            width: 100%;
+        }
+        .run-btn:hover { background: #e0ded9; }
+        .run-btn:active {
+            border-color: #808080 #ffffff #ffffff #808080;
+            background: #c0c0c0;
+            padding: 7px 5px 5px 7px;
+        }
+        .run-btn.primary {
+            color: #000080;
+        }
+        .run-btn.danger { color: #a00000; }
+
+        /* ── Sequence Name Inputs ── */
+        #seq-names-container {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            padding: 4px;
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080;
+        }
+        .seq-name-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .seq-name-row label {
+            font-size: 10px;
+            font-weight: bold;
+            min-width: 20px;
+        }
+
+        /* Info box */
+        #info-box {
+            padding: 4px 6px;
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080;
+            font-size: 10px;
+            color: #444;
+            line-height: 1.4;
+        }
+
+        /* ── Main Content Area ── */
+        #content-area {
+            flex: 1;
+            background: #808080;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 4px;
+        }
+
+        /* ── Matrix Input Area ── */
+        #matrix-section {
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            padding: 8px;
+            margin-bottom: 4px;
+        }
+        #matrix-section h2 {
+            font-size: 11px;
+            font-weight: bold;
+            color: #000080;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #808080;
+            padding-bottom: 3px;
+            margin-bottom: 6px;
+        }
+
+        .matrix-grid {
+            display: grid;
+            gap: 2px;
+        }
+        .matrix-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .matrix-cell.header-cell {
+            font-weight: bold;
+            font-size: 11px;
+            color: #000080;
+            background: #c0c0c0;
+            border: 1px solid #808080;
+            padding: 2px 4px;
+            min-height: 22px;
+            text-align: center;
+        }
+        .matrix-cell.diagonal-cell {
+            background: #a0a0a0;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080;
+            min-height: 22px;
+            min-width: 50px;
+        }
+        .matrix-cell input.cell-input {
+            width: 50px;
+            height: 22px;
+            background: #ffffff;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080;
+            font-family: inherit;
+            font-size: 11px;
+            text-align: center;
+            padding: 1px 2px;
+            color: #000000;
+            outline: none;
+        }
+        .matrix-cell input.cell-input:focus {
+            border-color: #000080 #ffffff #ffffff #000080;
+            background: #fffff0;
+        }
+        .matrix-cell input.cell-input.mirror {
+            background: #e8e8e8;
+            color: #555;
+        }
+
+        /* ── Steps / Results Area ── */
+        #steps-section {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .step-panel {
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            padding: 8px;
+        }
+        .step-panel h3 {
+            font-size: 11px;
+            font-weight: bold;
+            color: #000080;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #808080;
+            padding-bottom: 3px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .step-badge {
+            background: #000080;
+            color: #ffffff;
+            font-size: 9px;
+            padding: 1px 5px;
+            border-radius: 0;
+            font-weight: bold;
+        }
+        .step-merge-info {
+            font-size: 11px;
+            margin-bottom: 6px;
+            padding: 4px 6px;
+            background: #fffff0;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080;
+        }
+        .step-merge-info strong { color: #000080; }
+
+        /* ── Matrix Display ── */
+        .display-matrix {
+            display: inline-grid;
+            gap: 1px;
+            background: #808080;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080;
+            overflow: visible;
+        }
+        .dm-cell {
+            background: #ffffff;
+            border: none;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            padding: 3px 6px;
+            text-align: center;
+            min-width: 52px;
+            position: relative;
+            white-space: nowrap;
+        }
+        .dm-cell.dm-header {
+            background: #c0c0c0;
+            font-family: 'Tahoma', sans-serif;
+            font-weight: bold;
+            color: #000080;
+            font-size: 10px;
+        }
+        .dm-cell.dm-diagonal {
+            background: #a0a0a0;
+            color: #808080;
+        }
+        .dm-cell.dm-merged {
+            background: #ffffc0;
+            font-weight: bold;
+            color: #800000;
+        }
+        .dm-cell.dm-minimum {
+            background: #c0ffc0;
+            font-weight: bold;
+            color: #006000;
+            box-shadow: inset 0 0 0 2px #008000;
+        }
+
+        /* ── Hover Tooltip ── */
+        .dm-cell.has-tooltip {
+            cursor: help;
+        }
+        .dm-cell.has-tooltip:hover {
+            background: #d0e8ff;
+            z-index: 10;
+        }
+        .dm-cell.dm-merged.has-tooltip:hover {
+            background: #ffff80;
+        }
+
+        #tooltip {
+            position: fixed;
+            display: none;
+            background: #ffffcc;
+            border: 2px solid;
+            border-color: #000000 #808080 #808080 #000000;
+            padding: 6px 8px;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+            z-index: 9999;
+            max-width: 380px;
+            pointer-events: none;
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+        }
+        #tooltip .tt-title {
+            font-family: 'Tahoma', sans-serif;
+            font-weight: bold;
+            font-size: 10px;
+            color: #000080;
+            border-bottom: 1px solid #808080;
+            padding-bottom: 3px;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+        #tooltip .tt-formula {
+            color: #000000;
+        }
+        #tooltip .tt-result {
+            color: #800000;
+            font-weight: bold;
+            margin-top: 3px;
+            border-top: 1px solid #c0c0c0;
+            padding-top: 3px;
+        }
+
+        /* ── UPGMA Tree Visualization ── */
+        #tree-section {
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            padding: 8px;
+        }
+        #tree-section h3 {
+            font-size: 11px;
+            font-weight: bold;
+            color: #000080;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #808080;
+            padding-bottom: 3px;
+            margin-bottom: 8px;
+        }
+        #tree-canvas-wrap {
+            background: #ffffff;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080;
+            overflow: auto;
+        }
+        #tree-canvas {
+            display: block;
+        }
+
+        /* ── Footer Status Bar ── */
+        #status {
+            background: #d4d0c8;
+            border-top: 2px solid #808080;
+            padding: 3px 6px;
+            font-size: 11px;
+            color: #000000;
+            font-weight: normal;
+            box-shadow: inset 1px 1px 0 #ffffff;
+            flex-shrink: 0;
+        }
+
+        /* ── Empty State ── */
+        #empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: #808080;
+            font-size: 11px;
+            gap: 8px;
+        }
+        #empty-state .es-icon {
+            font-size: 32px;
+            opacity: 0.5;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 16px; height: 16px; }
+        ::-webkit-scrollbar-track { background: #c0c0c0; }
+        ::-webkit-scrollbar-thumb {
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+        }
+        ::-webkit-scrollbar-button {
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            display: block;
+            height: 16px;
+            width: 16px;
+        }
+
+        /* Merge highlight colors */
+        .highlight-a { color: #800000; font-weight: bold; }
+        .highlight-b { color: #000080; font-weight: bold; }
+        .highlight-result { color: #006000; font-weight: bold; }
+
+        /* ── Classic Windows Tabs ── */
+        #tab-bar {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            padding: 4px 4px 0 4px;
+            background: #808080;
+            flex-shrink: 0;
+        }
+        .tab-btn {
+            padding: 4px 12px 5px 12px;
+            background: #c0c0c0;
+            border: 2px solid;
+            border-color: #ffffff #808080 #d4d0c8 #ffffff;
+            border-bottom: none;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: bold;
+            color: #000000;
+            cursor: pointer;
+            position: relative;
+            bottom: -2px;
+            z-index: 1;
+            outline: none;
+        }
+        .tab-btn:hover { background: #d4d0c8; }
+        .tab-btn.active {
+            background: #d4d0c8;
+            border-color: #ffffff #808080 #d4d0c8 #ffffff;
+            z-index: 3;
+            padding-top: 5px;
+            color: #000080;
+        }
+        .tab-btn .tab-icon { margin-right: 4px; }
+
+        /* ── Tab Panels ── */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: flex; flex-direction: column; gap: 0; flex: 1; }
+
+        /* ── Sequence Aligner ── */
+        #seq-aligner-section {
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            padding: 8px;
+            margin-bottom: 4px;
+            flex-shrink: 0;
+        }
+        #seq-aligner-section h2 {
+            font-size: 11px;
+            font-weight: bold;
+            color: #000080;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #808080;
+            padding-bottom: 3px;
+            margin-bottom: 8px;
+        }
+        .seq-input-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 5px;
+        }
+        .seq-input-row .seq-label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #000080;
+            min-width: 28px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+        .seq-input-row .seq-name-inp {
+            width: 52px;
+            flex-shrink: 0;
+        }
+        .seq-input-row .seq-data-inp {
+            flex: 1;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            padding: 6px 8px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .seq-input-row .seq-len-badge {
+            font-size: 10px;
+            color: #808080;
+            min-width: 38px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        /* ── Pairwise Comparison Grid ── */
+        #comparison-wrap {
+            overflow: auto;
+            flex: 1;
+        }
+        .pair-block {
+            background: #d4d0c8;
+            border: 2px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            padding: 8px;
+            margin-bottom: 4px;
+        }
+        .pair-block-header {
+            font-size: 10px;
+            font-weight: bold;
+            color: #000080;
+            text-transform: uppercase;
+            border-bottom: 1px solid #808080;
+            padding-bottom: 3px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .pair-diff-badge {
+            background: #cc0000;
+            color: #ffffff;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 1px 7px;
+            letter-spacing: 0.5px;
+        }
+        .pair-diff-badge.zero {
+            background: #006000;
+        }
+        .seq-comparison-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            overflow-x: auto;
+        }
+        .seq-row {
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+        .seq-row-label {
+            font-size: 10px;
+            font-weight: bold;
+            color: #000080;
+            width: 28px;
+            flex-shrink: 0;
+            text-align: right;
+            padding-right: 6px;
+            font-family: 'Tahoma', sans-serif;
+        }
+        .seq-char-wrap {
+            display: flex;
+            gap: 1px;
+        }
+        .seq-char {
+            width: 18px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            font-weight: bold;
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .seq-char.match {
+            background: #f0fff0;
+            color: #005000;
+            border-color: #c0e0c0;
+        }
+        .seq-char.mismatch {
+            background: #fff0f0;
+            color: #cc0000;
+            border: 1px solid #ffb0b0;
+            font-weight: bold;
+        }
+        .seq-char.gap {
+            background: #f0f0f0;
+            color: #a0a0a0;
+            border-color: #d0d0d0;
+            font-style: italic;
+        }
+        /* Red dot marker below mismatch in the comparison row */
+        .diff-marker-row {
+            display: flex;
+            gap: 1px;
+        }
+        .diff-marker {
+            width: 18px;
+            height: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .diff-marker.has-diff::after {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #cc0000;
+            display: block;
+        }
+        /* Position index row */
+        .pos-row {
+            display: flex;
+            gap: 1px;
+        }
+        .pos-char {
+            width: 18px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Courier New', monospace;
+            font-size: 8px;
+            color: #a0a0a0;
+            flex-shrink: 0;
+        }
+        .pos-char.tick { color: #606060; font-weight: bold; }
+
+        /* Summary distance table (compact) */
+        .diff-summary-table {
+            display: inline-grid;
+            gap: 1px;
+            background: #808080;
+            border: 2px solid;
+            border-color: #808080 #ffffff #ffffff #808080;
+            margin-top: 6px;
+        }
+        .dst-cell {
+            background: #ffffff;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            padding: 2px 6px;
+            text-align: center;
+            min-width: 40px;
+        }
+        .dst-cell.dst-header {
+            background: #c0c0c0;
+            font-family: 'Tahoma', sans-serif;
+            font-weight: bold;
+            color: #000080;
+            font-size: 10px;
+        }
+        .dst-cell.dst-diagonal { background: #a0a0a0; color: #808080; }
+        .dst-cell.dst-value { color: #cc0000; font-weight: bold; }
+        .dst-cell.dst-zero { color: #006000; font-weight: bold; }
+
+        /* Aligner sidebar section */
+        #aligner-sidebar { display: none; }
+        #matrix-sidebar { display: contents; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <span class="logo">🌳</span>
+            <h1>UPGMA Phylogenetic Tree Calculator</h1>
+            <span class="subtitle">Sequence aligner · Distance matrix · Step-by-step tree</span>
+        </header>
+        <main>
+            <aside id="sidebar">
+
+                <!-- ── MATRIX TAB SIDEBAR ── -->
+                <div id="matrix-sidebar">
+                    <div class="section-label">Setup</div>
+                    <div class="input-row">
+                        <label for="num-seqs">Sequences:</label>
+                        <input type="number" id="num-seqs" class="win-input" min="3" max="10" value="4">
+                    </div>
+                    <button class="run-btn" onclick="buildMatrix()">
+                        ⬛ Build Matrix
+                    </button>
+
+                    <div class="sep"></div>
+                    <div class="section-label">Sequence Names</div>
+                    <div id="seq-names-container">
+                        <div style="font-size:10px; color:#808080; font-style:italic;">Build matrix first</div>
+                    </div>
+
+                    <div class="sep"></div>
+                    <div class="section-label">Actions</div>
+                    <button class="run-btn primary" onclick="runUPGMA()">
+                        ▶ &nbsp;Run UPGMA
+                    </button>
+                    <button class="run-btn" onclick="loadExample()">
+                        📖 Load Example
+                    </button>
+                    <button class="run-btn danger" onclick="resetAll()">
+                        🗑️ Reset
+                    </button>
+
+                    <div class="sep"></div>
+                    <div class="section-label">Guide</div>
+                    <div id="info-box">
+                        <b>UPGMA</b> — Unweighted Pair Group Method with Arithmetic Mean.<br><br>
+                        1. Enter number of sequences<br>
+                        2. Click <b>Build Matrix</b><br>
+                        3. Enter distances (upper triangle)<br>
+                        4. Name your sequences<br>
+                        5. Click <b>Run UPGMA</b><br><br>
+                        Hover over matrix cells to see exact calculations.
+                    </div>
+                </div>
+
+                <!-- ── ALIGNER TAB SIDEBAR ── -->
+                <div id="aligner-sidebar">
+                    <div class="section-label">Sequences</div>
+                    <div class="input-row">
+                        <label for="aln-num-seqs">Count:</label>
+                        <input type="number" id="aln-num-seqs" class="win-input" min="2" max="10" value="4">
+                    </div>
+                    <button class="run-btn" onclick="buildAligner()">
+                        ⬛ Build Inputs
+                    </button>
+
+                    <div class="sep"></div>
+                    <div class="section-label">Actions</div>
+                    <button class="run-btn" onclick="computeDifferences()">
+                        🔍 Count Differences
+                    </button>
+                    <button class="run-btn primary" onclick="sendToMatrix()">
+                        → Send to Matrix
+                    </button>
+                    <button class="run-btn" onclick="loadSeqExample()">
+                        📖 Load Example
+                    </button>
+                    <button class="run-btn danger" onclick="clearAligner()">
+                        🗑️ Clear
+                    </button>
+
+                    <div class="sep"></div>
+                    <div class="section-label">Guide</div>
+                    <div id="aligner-info-box" style="padding:4px 6px; background:#d4d0c8; border:2px solid; border-color:#808080 #ffffff #ffffff #808080; font-size:10px; color:#444; line-height:1.4;">
+                        Enter raw sequences (DNA, RNA, protein…) of the same length.<br><br>
+                        Differences per position are shown in <span style="color:#cc0000; font-weight:bold;">red</span>.<br><br>
+                        Click <b>Send to Matrix</b> to use the difference counts as distances.
+                    </div>
+                </div>
+            </aside>
+
+            <div id="content-area" style="overflow:hidden; display:flex; flex-direction:column; padding:0; gap:0;">
+
+                <!-- ── TAB BAR ── -->
+                <div id="tab-bar">
+                    <button class="tab-btn active" id="tab-matrix" onclick="switchTab('matrix')">
+                        <span class="tab-icon">📊</span>Distance Matrix
+                    </button>
+                    <button class="tab-btn" id="tab-aligner" onclick="switchTab('aligner')">
+                        <span class="tab-icon">🧬</span>Sequence Aligner
+                    </button>
+                </div>
+
+                <!-- ── MATRIX TAB PANEL ── -->
+                <div class="tab-panel active" id="panel-matrix" style="overflow:auto; padding:4px; gap:4px;">
+                    <div id="matrix-section">
+                        <h2>📊 Distance Matrix Input</h2>
+                        <div id="matrix-input-wrap">
+                            <div id="empty-state">
+                                <div class="es-icon">🧬</div>
+                                <div>Set the number of sequences and click <b>Build Matrix</b> to begin</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="steps-section">
+                        <!-- Steps appear here after running UPGMA -->
+                    </div>
+                </div>
+
+                <!-- ── ALIGNER TAB PANEL ── -->
+                <div class="tab-panel" id="panel-aligner" style="overflow:hidden; display:none; flex-direction:column;">
+                    <div id="seq-aligner-section">
+                        <h2>🧬 Sequence Input</h2>
+                        <div id="seq-inputs-wrap">
+                            <div style="font-size:10px; color:#808080; font-style:italic;">Click <b>Build Inputs</b> to add sequences.</div>
+                        </div>
+                    </div>
+                    <div id="comparison-wrap" style="overflow:auto; padding:4px; flex:1;">
+                        <!-- Pairwise comparisons appear here -->
+                    </div>
+                </div>
+
+            </div>
+        </main>
+        <footer id="status">Choose a tab to get started. Use the Sequence Aligner to auto-count differences, or enter distances manually.</footer>
+    </div>
+
+    <div id="tooltip">
+        <div class="tt-title" id="tt-title"></div>
+        <div class="tt-formula" id="tt-formula"></div>
+        <div class="tt-result" id="tt-result"></div>
+    </div>
+
+<script>
+/* ================================================================
+   STATE
+   ================================================================ */
+let numSeqs = 0;
+let seqNames = [];
+let inputMatrix = []; // Raw upper-triangle input values (as strings/numbers)
+
+// Aligner state
+let alnNumSeqs = 0;
+let alnLastDiffMatrix = null; // last computed difference counts
+
+/* ================================================================
+   TAB SWITCHING
+   ================================================================ */
+function switchTab(tab) {
+    // Buttons
+    document.getElementById('tab-matrix').classList.toggle('active', tab === 'matrix');
+    document.getElementById('tab-aligner').classList.toggle('active', tab === 'aligner');
+
+    // Panels
+    const matPanel = document.getElementById('panel-matrix');
+    const alnPanel = document.getElementById('panel-aligner');
+    matPanel.classList.toggle('active', tab === 'matrix');
+    alnPanel.classList.toggle('active', tab === 'aligner');
+    matPanel.style.display = tab === 'matrix' ? 'flex' : 'none';
+    alnPanel.style.display = tab === 'aligner' ? 'flex' : 'none';
+
+    // Sidebar
+    document.getElementById('matrix-sidebar').style.display = tab === 'matrix' ? 'contents' : 'none';
+    document.getElementById('aligner-sidebar').style.display = tab === 'aligner' ? 'block' : 'none';
+
+    const msgs = {
+        matrix: 'Distance Matrix tab — enter distances manually or receive them from the Sequence Aligner.',
+        aligner: 'Sequence Aligner tab — enter sequences, count differences, then send to the matrix.'
+    };
+    setStatus(msgs[tab]);
+}
+
+/* ================================================================
+   SEQUENCE ALIGNER
+   ================================================================ */
+
+function buildAligner() {
+    alnNumSeqs = parseInt(document.getElementById('aln-num-seqs').value);
+    if (isNaN(alnNumSeqs) || alnNumSeqs < 2 || alnNumSeqs > 10) {
+        setStatus('Please enter between 2 and 10 sequences.');
+        return;
+    }
+    alnLastDiffMatrix = null;
+
+    const wrap = document.getElementById('seq-inputs-wrap');
+    wrap.innerHTML = '';
+
+    for (let i = 0; i < alnNumSeqs; i++) {
+        const defaultName = String.fromCharCode(65 + i);
+        const row = document.createElement('div');
+        row.className = 'seq-input-row';
+        row.innerHTML = `
+            <span class="seq-label">${i + 1}</span>
+            <input class="win-input seq-name-inp" id="aln-name-${i}" type="text"
+                   value="${defaultName}" maxlength="6" placeholder="Name">
+            <input class="win-input seq-data-inp" id="aln-seq-${i}" type="text"
+                   placeholder="Enter sequence…" oninput="onSeqInput(${i})">
+            <span class="seq-len-badge" id="aln-len-${i}">0 bp</span>
+        `;
+        wrap.appendChild(row);
+    }
+
+    document.getElementById('comparison-wrap').innerHTML = '';
+    setStatus(`Aligner ready for ${alnNumSeqs} sequences. Enter your sequences, then click Count Differences.`);
+}
+
+function onSeqInput(i) {
+    const inp = document.getElementById(`aln-seq-${i}`);
+    inp.value = inp.value.toUpperCase().replace(/[^A-Z\-\.]/g, '');
+    const badge = document.getElementById(`aln-len-${i}`);
+    if (badge) badge.textContent = inp.value.length + ' bp';
+}
+
+function getAlignerSequences() {
+    const seqs = [];
+    for (let i = 0; i < alnNumSeqs; i++) {
+        const nameEl = document.getElementById(`aln-name-${i}`);
+        const seqEl = document.getElementById(`aln-seq-${i}`);
+        if (!nameEl || !seqEl) continue;
+        seqs.push({
+            name: nameEl.value.trim() || String.fromCharCode(65 + i),
+            seq: seqEl.value.trim().toUpperCase()
+        });
+    }
+    return seqs;
+}
+
+function computeDifferences() {
+    if (alnNumSeqs === 0) {
+        setStatus('Build the sequence inputs first.');
+        return;
+    }
+
+    const seqs = getAlignerSequences();
+    const lengths = seqs.map(s => s.seq.length).filter(l => l > 0);
+
+    if (lengths.length < seqs.length) {
+        setStatus('Please enter all sequences before counting differences.');
+        return;
+    }
+
+    const maxLen = Math.max(...lengths);
+    const minLen = Math.min(...lengths);
+    const unequal = minLen !== maxLen;
+
+    // Build diff matrix
+    const n = seqs.length;
+    const diffMat = Array.from({ length: n }, () => Array(n).fill(0));
+
+    for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+            const sa = seqs[i].seq;
+            const sb = seqs[j].seq;
+            let diffs = 0;
+            for (let k = 0; k < maxLen; k++) {
+                const ca = sa[k] || '-';
+                const cb = sb[k] || '-';
+                if (ca !== cb) diffs++;
+            }
+            diffMat[i][j] = diffs;
+            diffMat[j][i] = diffs;
+        }
+    }
+
+    alnLastDiffMatrix = { seqs, diffMat, maxLen };
+
+    // Render all pairwise comparisons
+    const compWrap = document.getElementById('comparison-wrap');
+    compWrap.innerHTML = '';
+
+    // Summary distance table at top
+    const summaryPanel = document.createElement('div');
+    summaryPanel.className = 'pair-block';
+    summaryPanel.innerHTML = '<div class="pair-block-header"><span>📊 Difference Count Summary</span></div>';
+    const summaryTable = buildSummaryTable(seqs, diffMat, maxLen);
+    summaryPanel.appendChild(summaryTable);
+    compWrap.appendChild(summaryPanel);
+
+    // Individual pairwise blocks
+    for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+            const block = buildPairBlock(seqs[i], seqs[j], diffMat[i][j], maxLen);
+            compWrap.appendChild(block);
+        }
+    }
+
+    const warnMsg = unequal ? ' ⚠ Sequences have unequal lengths — shorter sequences padded with "-".' : '';
+    setStatus(`Counted differences for ${n} sequences (length ${maxLen}).${warnMsg}`);
+}
+
+function buildSummaryTable(seqs, diffMat, maxLen) {
+    const n = seqs.length;
+    const grid = document.createElement('div');
+    grid.className = 'diff-summary-table';
+    grid.style.gridTemplateColumns = `repeat(${n + 1}, auto)`;
+
+    // Corner
+    addDstCell(grid, '', ['dst-cell', 'dst-header']);
+    for (let j = 0; j < n; j++) addDstCell(grid, seqs[j].name, ['dst-cell', 'dst-header']);
+
+    for (let i = 0; i < n; i++) {
+        addDstCell(grid, seqs[i].name, ['dst-cell', 'dst-header']);
+        for (let j = 0; j < n; j++) {
+            if (i === j) {
+                addDstCell(grid, '—', ['dst-cell', 'dst-diagonal']);
+            } else {
+                const v = diffMat[i][j];
+                addDstCell(grid, String(v), ['dst-cell', v === 0 ? 'dst-zero' : 'dst-value']);
+            }
+        }
+    }
+    return grid;
+}
+
+function addDstCell(parent, text, classes) {
+    const el = document.createElement('div');
+    el.className = classes.join(' ');
+    el.textContent = text;
+    parent.appendChild(el);
+}
+
+function buildPairBlock(seqA, seqB, diffCount, maxLen) {
+    const block = document.createElement('div');
+    block.className = 'pair-block';
+
+    // Header
+    const hdr = document.createElement('div');
+    hdr.className = 'pair-block-header';
+
+    const title = document.createElement('span');
+    title.innerHTML = `<b>${seqA.name}</b> vs <b>${seqB.name}</b>`;
+
+    const badge = document.createElement('span');
+    badge.className = 'pair-diff-badge' + (diffCount === 0 ? ' zero' : '');
+    badge.textContent = diffCount === 0
+        ? '✓ Identical'
+        : `${diffCount} difference${diffCount !== 1 ? 's' : ''}`;
+
+    hdr.appendChild(title);
+    hdr.appendChild(badge);
+    block.appendChild(hdr);
+
+    // Comparison grid
+    const grid = document.createElement('div');
+    grid.className = 'seq-comparison-grid';
+
+    const sa = seqA.seq.padEnd(maxLen, '-');
+    const sb = seqB.seq.padEnd(maxLen, '-');
+
+    // Position ruler row
+    const posRow = document.createElement('div');
+    posRow.className = 'seq-row';
+    const posLbl = document.createElement('div');
+    posLbl.className = 'seq-row-label';
+    posLbl.textContent = '#';
+    posRow.appendChild(posLbl);
+    const posWrap = document.createElement('div');
+    posWrap.className = 'seq-char-wrap';
+    for (let k = 0; k < maxLen; k++) {
+        const p = document.createElement('div');
+        p.className = 'pos-char' + ((k + 1) % 10 === 0 ? ' tick' : '');
+        // Show number on multiples of 10, or first
+        if ((k + 1) % 10 === 0) p.textContent = String(k + 1);
+        else if (k === 0) p.textContent = '1';
+        posWrap.appendChild(p);
+    }
+    posRow.appendChild(posWrap);
+    grid.appendChild(posRow);
+
+    // Sequence A row
+    const rowA = buildSeqRow(seqA.name, sa, sb, maxLen, true);
+    grid.appendChild(rowA.row);
+
+    // Diff marker row
+    const markerRow = document.createElement('div');
+    markerRow.className = 'seq-row';
+    const markerLblSpacer = document.createElement('div');
+    markerLblSpacer.className = 'seq-row-label';
+    markerRow.appendChild(markerLblSpacer);
+    const markerWrap = document.createElement('div');
+    markerWrap.className = 'diff-marker-row';
+    for (let k = 0; k < maxLen; k++) {
+        const ca = sa[k] || '-';
+        const cb = sb[k] || '-';
+        const isDiff = ca !== cb;
+        const m = document.createElement('div');
+        m.className = 'diff-marker' + (isDiff ? ' has-diff' : '');
+        markerWrap.appendChild(m);
+    }
+    markerRow.appendChild(markerWrap);
+    grid.appendChild(markerRow);
+
+    // Sequence B row
+    const rowB = buildSeqRow(seqB.name, sb, sa, maxLen, false);
+    grid.appendChild(rowB.row);
+
+    block.appendChild(grid);
+    return block;
+}
+
+function buildSeqRow(label, seqSelf, seqOther, maxLen, isTop) {
+    const row = document.createElement('div');
+    row.className = 'seq-row';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'seq-row-label';
+    lbl.textContent = label;
+    row.appendChild(lbl);
+
+    const charWrap = document.createElement('div');
+    charWrap.className = 'seq-char-wrap';
+
+    for (let k = 0; k < maxLen; k++) {
+        const ca = seqSelf[k] || '-';
+        const cb = seqOther[k] || '-';
+        const isDiff = ca !== cb;
+        const isGap = ca === '-' || ca === '.';
+
+        const ch = document.createElement('div');
+        if (isGap) {
+            ch.className = 'seq-char gap';
+        } else if (isDiff) {
+            ch.className = 'seq-char mismatch';
+        } else {
+            ch.className = 'seq-char match';
+        }
+        ch.textContent = ca;
+        charWrap.appendChild(ch);
+    }
+
+    row.appendChild(charWrap);
+    return { row };
+}
+
+function sendToMatrix() {
+    if (!alnLastDiffMatrix) {
+        setStatus('Count differences first before sending to matrix.');
+        return;
+    }
+
+    const { seqs, diffMat } = alnLastDiffMatrix;
+    const n = seqs.length;
+
+    // Set up the matrix tab with these sequences
+    numSeqs = n;
+    seqNames = seqs.map(s => s.name);
+    inputMatrix = Array.from({ length: n }, () => Array(n).fill(''));
+
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+            inputMatrix[i][j] = i === j ? '' : String(diffMat[i][j]);
+        }
+    }
+
+    // Also update the aln-num-seqs count to keep in sync
+    document.getElementById('num-seqs').value = n;
+
+    renderMatrixInput();
+    renderSeqNames();
+
+    // Populate the inputs from inputMatrix
+    for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+            const inp = document.getElementById(`mcell-${i}-${j}`);
+            if (inp) {
+                inp.value = String(diffMat[i][j]);
+                const mirror = document.getElementById(`mcell-${j}-${i}`);
+                if (mirror) mirror.value = String(diffMat[i][j]);
+            }
+        }
+    }
+
+    document.getElementById('steps-section').innerHTML = '';
+
+    switchTab('matrix');
+    setStatus(`Sent ${n} sequences to the distance matrix with difference counts. Click Run UPGMA to calculate.`);
+}
+
+function loadSeqExample() {
+    // DNA example — 4 sequences, 10 bp
+    const example = [
+        { name: 'Seq1', seq: 'ATCGATCGAT' },
+        { name: 'Seq2', seq: 'ATCGATCGTT' },
+        { name: 'Seq3', seq: 'ATCGTTCGTT' },
+        { name: 'Seq4', seq: 'TTCGTTCGTT' },
+    ];
+    alnNumSeqs = example.length;
+    document.getElementById('aln-num-seqs').value = alnNumSeqs;
+    buildAligner();
+    example.forEach((s, i) => {
+        const nameEl = document.getElementById(`aln-name-${i}`);
+        const seqEl  = document.getElementById(`aln-seq-${i}`);
+        const lenEl  = document.getElementById(`aln-len-${i}`);
+        if (nameEl) nameEl.value = s.name;
+        if (seqEl)  seqEl.value  = s.seq;
+        if (lenEl)  lenEl.textContent = s.seq.length + ' bp';
+    });
+    setStatus('Example DNA sequences loaded. Click Count Differences to analyse.');
+}
+
+function clearAligner() {
+    alnNumSeqs = 0;
+    alnLastDiffMatrix = null;
+    document.getElementById('seq-inputs-wrap').innerHTML =
+        '<div style="font-size:10px; color:#808080; font-style:italic;">Click <b>Build Inputs</b> to add sequences.</div>';
+    document.getElementById('comparison-wrap').innerHTML = '';
+    document.getElementById('aln-num-seqs').value = 4;
+    setStatus('Aligner cleared.');
+}
+
+/* ================================================================
+   UTILITY: Exact Fraction Representation
+   ================================================================ */
+function gcd(a, b) {
+    a = Math.abs(a);
+    b = Math.abs(b);
+    while (b) { [a, b] = [b, a % b]; }
+    return a;
+}
+
+// Represents a rational number as { num, den } in lowest terms
+function frac(num, den = 1) {
+    if (den === 0) return { num: NaN, den: 1, isInfty: true };
+    if (num === 0) return { num: 0, den: 1 };
+    const sign = (num < 0) !== (den < 0) ? -1 : 1;
+    num = Math.abs(num);
+    den = Math.abs(den);
+    const g = gcd(num, den);
+    return { num: sign * (num / g), den: den / g };
+}
+
+function fracAdd(a, b) {
+    return frac(a.num * b.den + b.num * a.den, a.den * b.den);
+}
+
+function fracDiv(a, divisor) {
+    // divisor is a plain integer
+    return frac(a.num, a.den * divisor);
+}
+
+function fracToStr(f) {
+    if (isNaN(f.num)) return '∞';
+    if (f.den === 1) return String(f.num);
+    return `${f.num}/${f.den}`;
+}
+
+function fracToFloat(f) {
+    return f.num / f.den;
+}
+
+// Parse a value that might be a decimal, integer, or fraction string
+function parseValue(str) {
+    str = String(str).trim();
+    if (!str) return null;
+    if (str.includes('/')) {
+        const parts = str.split('/');
+        if (parts.length === 2) {
+            const n = parseFloat(parts[0]);
+            const d = parseFloat(parts[1]);
+            if (!isNaN(n) && !isNaN(d) && d !== 0) return frac(n, d);
+        }
+        return null;
+    }
+    const v = parseFloat(str);
+    if (isNaN(v)) return null;
+    // Convert decimal to fraction — handle common decimals exactly
+    // Use a max denominator of 1000000
+    return decimalToFrac(v);
+}
+
+function decimalToFrac(val) {
+    if (Number.isInteger(val)) return frac(val, 1);
+    // Multiply until integer
+    let den = 1;
+    let num = val;
+    // Find suitable denominator
+    const str = String(val);
+    const decPart = str.split('.')[1] || '';
+    den = Math.pow(10, decPart.length);
+    num = Math.round(val * den);
+    return frac(num, den);
+}
+
+/* ================================================================
+   BUILD MATRIX INPUT UI
+   ================================================================ */
+function buildMatrix() {
+    numSeqs = parseInt(document.getElementById('num-seqs').value);
+    if (isNaN(numSeqs) || numSeqs < 3 || numSeqs > 10) {
+        setStatus('Please enter a number between 3 and 10.');
+        return;
+    }
+
+    // Initialize seqNames
+    seqNames = [];
+    for (let i = 0; i < numSeqs; i++) {
+        seqNames.push(String.fromCharCode(65 + i)); // A, B, C, ...
+    }
+    inputMatrix = Array.from({ length: numSeqs }, () => Array(numSeqs).fill(''));
+
+    renderMatrixInput();
+    renderSeqNames();
+    document.getElementById('steps-section').innerHTML = '';
+    setStatus(`Matrix built for ${numSeqs} sequences. Enter distances in the upper triangle.`);
+}
+
+function renderSeqNames() {
+    const container = document.getElementById('seq-names-container');
+    container.innerHTML = '';
+    for (let i = 0; i < numSeqs; i++) {
+        const row = document.createElement('div');
+        row.className = 'seq-name-row';
+        row.innerHTML = `<label>${i + 1}:</label>
+            <input class="win-input" type="text" id="sname-${i}" value="${seqNames[i]}" maxlength="6"
+                oninput="seqNames[${i}] = this.value; syncMatrixHeaders()">`;
+        container.appendChild(row);
+    }
+}
+
+function syncMatrixHeaders() {
+    for (let i = 0; i < numSeqs; i++) {
+        const rowHeader = document.getElementById(`mhrow-${i}`);
+        const colHeader = document.getElementById(`mhcol-${i}`);
+        const name = seqNames[i] || (String.fromCharCode(65 + i));
+        if (rowHeader) rowHeader.textContent = name;
+        if (colHeader) colHeader.textContent = name;
+    }
+}
+
+function renderMatrixInput() {
+    const wrap = document.getElementById('matrix-input-wrap');
+    const grid = document.createElement('div');
+    grid.className = 'matrix-grid';
+    grid.style.gridTemplateColumns = `52px repeat(${numSeqs}, 56px)`;
+
+    // Header row
+    const cornerCell = document.createElement('div');
+    cornerCell.className = 'matrix-cell header-cell';
+    cornerCell.textContent = '';
+    grid.appendChild(cornerCell);
+    for (let j = 0; j < numSeqs; j++) {
+        const cell = document.createElement('div');
+        cell.className = 'matrix-cell header-cell';
+        cell.id = `mhcol-${j}`;
+        cell.textContent = seqNames[j];
+        grid.appendChild(cell);
+    }
+
+    // Data rows
+    for (let i = 0; i < numSeqs; i++) {
+        // Row header
+        const rowHeader = document.createElement('div');
+        rowHeader.className = 'matrix-cell header-cell';
+        rowHeader.id = `mhrow-${i}`;
+        rowHeader.textContent = seqNames[i];
+        grid.appendChild(rowHeader);
+
+        for (let j = 0; j < numSeqs; j++) {
+            const cell = document.createElement('div');
+            cell.className = 'matrix-cell';
+
+            if (i === j) {
+                cell.className = 'matrix-cell diagonal-cell';
+                grid.appendChild(cell);
+                continue;
+            }
+
+            if (i < j) {
+                // Upper triangle — editable
+                const inp = document.createElement('input');
+                inp.type = 'text';
+                inp.className = 'cell-input';
+                inp.id = `mcell-${i}-${j}`;
+                inp.placeholder = '0';
+                inp.value = inputMatrix[i][j] !== '' ? inputMatrix[i][j] : '';
+                inp.addEventListener('input', () => {
+                    inputMatrix[i][j] = inp.value;
+                    // Mirror to lower triangle display
+                    const mirror = document.getElementById(`mcell-${j}-${i}`);
+                    if (mirror) {
+                        mirror.value = inp.value;
+                        inputMatrix[j][i] = inp.value;
+                    }
+                });
+                cell.appendChild(inp);
+            } else {
+                // Lower triangle — mirrored (read-only display)
+                const inp = document.createElement('input');
+                inp.type = 'text';
+                inp.className = 'cell-input mirror';
+                inp.id = `mcell-${i}-${j}`;
+                inp.readOnly = true;
+                inp.placeholder = '—';
+                inp.tabIndex = -1;
+                cell.appendChild(inp);
+            }
+
+            grid.appendChild(cell);
+        }
+    }
+
+    wrap.innerHTML = '';
+    wrap.appendChild(grid);
+}
+
+/* ================================================================
+   READ MATRIX VALUES
+   ================================================================ */
+function readMatrix() {
+    const n = numSeqs;
+    const mat = Array.from({ length: n }, () => Array(n).fill(null));
+    const errors = [];
+
+    for (let i = 0; i < n; i++) {
+        mat[i][i] = frac(0);
+        for (let j = i + 1; j < n; j++) {
+            const inp = document.getElementById(`mcell-${i}-${j}`);
+            const val = inp ? parseValue(inp.value) : null;
+            if (val === null || isNaN(val.num)) {
+                errors.push(`Missing/invalid value at (${seqNames[i]}, ${seqNames[j]})`);
+            } else {
+                mat[i][j] = val;
+                mat[j][i] = val;
+            }
+        }
+    }
+
+    if (errors.length > 0) {
+        throw new Error('Invalid distances:\n' + errors.join('\n'));
+    }
+    return mat;
+}
+
+/* ================================================================
+   UPGMA ALGORITHM (Exact Arithmetic)
+   ================================================================ */
+function runUPGMA() {
+    if (numSeqs === 0) {
+        setStatus('Build the matrix first.');
+        return;
+    }
+
+    let mat;
+    try {
+        mat = readMatrix();
+    } catch (e) {
+        setStatus('Error: ' + e.message);
+        return;
+    }
+
+    const stepsSection = document.getElementById('steps-section');
+    stepsSection.innerHTML = '';
+
+    // Each cluster tracks:
+    // { label: display string, members: [original indices], size: number }
+    let clusters = [];
+    for (let i = 0; i < numSeqs; i++) {
+        clusters.push({ label: seqNames[i], members: [i], size: 1, _treeNodeId: i });
+    }
+
+    const allSteps = [];
+    const treeNodes = {}; // For building dendrogram
+    for (let i = 0; i < numSeqs; i++) {
+        treeNodes[i] = { label: seqNames[i], height: 0, left: null, right: null, originalIdx: i };
+    }
+    let nextNodeId = numSeqs;
+
+    // Current distance matrix — start with original
+    let currentMat = mat.map(row => row.map(v => ({ ...v })));
+    let currentClusters = clusters.slice();
+
+    const totalSteps = numSeqs - 1;
+
+    for (let step = 0; step < totalSteps; step++) {
+        const n = currentClusters.length;
+
+        // Find minimum distance
+        let minVal = Infinity;
+        let minI = -1, minJ = -1;
+        for (let i = 0; i < n; i++) {
+            for (let j = i + 1; j < n; j++) {
+                const v = fracToFloat(currentMat[i][j]);
+                if (v < minVal) {
+                    minVal = v;
+                    minI = i;
+                    minJ = j;
+                }
+            }
+        }
+
+        const cA = currentClusters[minI];
+        const cB = currentClusters[minJ];
+        const mergeDistFrac = currentMat[minI][minJ];
+        const branchHeight = fracDiv(mergeDistFrac, 2);
+
+        // New cluster
+        const newCluster = {
+            label: `(${cA.label},${cB.label})`,
+            members: [...cA.members, ...cB.members],
+            size: cA.size + cB.size
+        };
+
+        // Calculate new distances using UPGMA formula
+        // d(new, k) = (|cA| * d(cA,k) + |cB| * d(cB,k)) / (|cA| + |cB|)
+        const newDistances = [];
+        const calcDetails = {}; // For tooltips
+
+        const remainingIndices = [];
+        for (let k = 0; k < n; k++) {
+            if (k !== minI && k !== minJ) remainingIndices.push(k);
+        }
+
+        for (const k of remainingIndices) {
+            const ck = currentClusters[k];
+            const dAk = currentMat[minI][k];
+            const dBk = currentMat[minJ][k];
+
+            // UPGMA: (|cA|*d(A,k) + |cB|*d(B,k)) / (|cA| + |cB|)
+            const sizeA = cA.size;
+            const sizeB = cB.size;
+            const totalSize = sizeA + sizeB;
+
+            // Exact: (sizeA * dAk + sizeB * dBk) / totalSize
+            const termA = frac(sizeA * dAk.num, dAk.den);
+            const termB = frac(sizeB * dBk.num, dBk.den);
+            const numerSum = fracAdd(termA, termB);
+            const newDist = fracDiv(numerSum, totalSize);
+
+            newDistances.push({ k, dist: newDist });
+            calcDetails[k] = {
+                ckLabel: ck.label,
+                dAk, dBk,
+                sizeA, sizeB, totalSize,
+                termA, termB, numerSum, newDist
+            };
+        }
+
+        // Build new matrix and cluster list
+        const newN = remainingIndices.length + 1;
+        const newMat = Array.from({ length: newN }, () => Array(newN).fill(null));
+        const newClusters = [];
+
+        // Map: position 0 = new merged cluster, 1..newN-1 = remaining
+        newClusters.push(newCluster);
+        for (const k of remainingIndices) {
+            newClusters.push(currentClusters[k]);
+        }
+
+        // Fill new matrix
+        for (let ii = 0; ii < newN; ii++) {
+            newMat[ii][ii] = frac(0);
+        }
+
+        // Distances from new cluster to remaining
+        for (let ri = 0; ri < remainingIndices.length; ri++) {
+            const k = remainingIndices[ri];
+            const pos = ri + 1; // position in newClusters/newMat
+            const d = calcDetails[k].newDist;
+            newMat[0][pos] = d;
+            newMat[pos][0] = d;
+        }
+
+        // Distances among remaining clusters (unchanged)
+        for (let ri = 0; ri < remainingIndices.length; ri++) {
+            for (let rj = ri + 1; rj < remainingIndices.length; rj++) {
+                const ki = remainingIndices[ri];
+                const kj = remainingIndices[rj];
+                const d = currentMat[ki][kj];
+                newMat[ri + 1][rj + 1] = d;
+                newMat[rj + 1][ri + 1] = d;
+            }
+        }
+
+        // Build tree node
+        const newNode = {
+            label: newCluster.label,
+            height: fracToFloat(branchHeight),
+            heightFrac: branchHeight,
+            mergeDistFrac,
+            left: currentClusters[minI]._treeNodeId,
+            right: currentClusters[minJ]._treeNodeId,
+            leftCluster: cA,
+            rightCluster: cB,
+        };
+        const nodeId = nextNodeId++;
+        treeNodes[nodeId] = newNode;
+        newCluster._treeNodeId = nodeId;
+
+        allSteps.push({
+            stepNum: step + 1,
+            beforeClusters: currentClusters.map(c => ({ ...c })),
+            beforeMat: currentMat.map(r => r.map(v => ({ ...v }))),
+            mergeI: minI,
+            mergeJ: minJ,
+            clusterA: cA,
+            clusterB: cB,
+            mergeDistFrac,
+            branchHeight,
+            calcDetails,
+            remainingIndices,
+            afterClusters: newClusters,
+            afterMat: newMat,
+            newCluster,
+            nodeId
+        });
+
+        currentMat = newMat;
+        currentClusters = newClusters;
+    }
+
+    // Render all steps
+    allSteps.forEach(step => renderStep(step));
+
+    // Render tree
+    const rootNodeId = nextNodeId - 1;
+    renderTree(treeNodes, rootNodeId, allSteps);
+
+    setStatus(`UPGMA complete! ${totalSteps} merge step(s). Hover over matrix cells to see calculations.`);
+}
+
+/* ================================================================
+   RENDER A SINGLE STEP
+   ================================================================ */
+function renderStep(step) {
+    const section = document.getElementById('steps-section');
+    const panel = document.createElement('div');
+    panel.className = 'step-panel';
+
+    const { stepNum, beforeClusters, beforeMat, mergeI, mergeJ, clusterA, clusterB,
+            mergeDistFrac, branchHeight, calcDetails, remainingIndices,
+            afterClusters, afterMat, newCluster } = step;
+
+    panel.innerHTML = `
+        <h3>
+            <span class="step-badge">STEP ${stepNum}</span>
+            Merge ${clusterA.label} + ${clusterB.label}
+        </h3>
+        <div class="step-merge-info">
+            Minimum distance: <strong>d(${clusterA.label}, ${clusterB.label}) = ${fracToStr(mergeDistFrac)}</strong>
+            &nbsp;→&nbsp; Branch height = ${fracToStr(mergeDistFrac)}/2 = <strong>${fracToStr(branchHeight)}</strong>
+        </div>
+        <div style="margin-bottom:8px">
+            <div style="font-size:10px; font-weight:bold; color:#000080; margin-bottom:4px;">BEFORE (hover cells for calculations):</div>
+            <div id="before-mat-${stepNum}"></div>
+        </div>
+        <div>
+            <div style="font-size:10px; font-weight:bold; color:#000080; margin-bottom:4px;">AFTER merging into <span style="color:#800000">${newCluster.label}</span>:</div>
+            <div id="after-mat-${stepNum}"></div>
+        </div>
+    `;
+
+    section.appendChild(panel);
+
+    // Render before matrix
+    const beforeWrap = document.getElementById(`before-mat-${stepNum}`);
+    renderDisplayMatrix(beforeWrap, beforeClusters, beforeMat, {
+        highlightMin: [mergeI, mergeJ],
+        calcDetails,
+        mergeI, mergeJ,
+        isBefore: true,
+        remainingIndices,
+        clusterA, clusterB
+    });
+
+    // Render after matrix
+    const afterWrap = document.getElementById(`after-mat-${stepNum}`);
+    renderDisplayMatrix(afterWrap, afterClusters, afterMat, {
+        highlightMerged: true,
+        calcDetails,
+        remainingIndices,
+        isBefore: false,
+        clusterA, clusterB
+    });
+}
+
+/* ================================================================
+   RENDER A DISPLAY MATRIX (with tooltips)
+   ================================================================ */
+function renderDisplayMatrix(container, clusters, mat, opts) {
+    const n = clusters.length;
+    const grid = document.createElement('div');
+    grid.className = 'display-matrix';
+    grid.style.gridTemplateColumns = `repeat(${n + 1}, auto)`;
+
+    // Corner
+    addDMCell(grid, '', ['dm-header', 'dm-cell']);
+
+    // Column headers
+    for (let j = 0; j < n; j++) {
+        addDMCell(grid, clusters[j].label, ['dm-header', 'dm-cell']);
+    }
+
+    // Rows
+    for (let i = 0; i < n; i++) {
+        // Row header
+        addDMCell(grid, clusters[i].label, ['dm-header', 'dm-cell']);
+
+        for (let j = 0; j < n; j++) {
+            if (i === j) {
+                addDMCell(grid, '—', ['dm-cell', 'dm-diagonal']);
+                continue;
+            }
+
+            const val = mat[i][j];
+            const valStr = val ? fracToStr(val) : '?';
+            const classes = ['dm-cell'];
+
+            let tooltip = null;
+
+            if (opts.isBefore) {
+                // Highlight minimum pair
+                if ((i === opts.mergeI && j === opts.mergeJ) ||
+                    (i === opts.mergeJ && j === opts.mergeI)) {
+                    classes.push('dm-minimum');
+                }
+            } else {
+                // After matrix: merged row/col is index 0
+                if (i === 0 || j === 0) {
+                    classes.push('dm-merged');
+                    if (i !== j) {
+                        // Find the original remaining index
+                        const otherPos = i === 0 ? j : i;
+                        const origK = opts.remainingIndices[otherPos - 1];
+                        if (origK !== undefined && opts.calcDetails[origK]) {
+                            const cd = opts.calcDetails[origK];
+                            tooltip = buildTooltip(cd, opts.clusterA, opts.clusterB);
+                            classes.push('has-tooltip');
+                        }
+                    }
+                }
+            }
+
+            addDMCellWithTooltip(grid, valStr, classes, tooltip);
+        }
+    }
+
+    container.appendChild(grid);
+}
+
+function addDMCell(parent, text, classes) {
+    const cell = document.createElement('div');
+    cell.className = classes.join(' ');
+    cell.textContent = text;
+    parent.appendChild(cell);
+    return cell;
+}
+
+function addDMCellWithTooltip(parent, text, classes, tooltipData) {
+    const cell = document.createElement('div');
+    cell.className = classes.join(' ');
+    cell.textContent = text;
+
+    if (tooltipData) {
+        cell.addEventListener('mouseenter', (e) => showTooltip(e, tooltipData));
+        cell.addEventListener('mousemove', (e) => moveTooltip(e));
+        cell.addEventListener('mouseleave', hideTooltip);
+    }
+
+    parent.appendChild(cell);
+    return cell;
+}
+
+function buildTooltip(cd, clusterA, clusterB) {
+    const { ckLabel, dAk, dBk, sizeA, sizeB, totalSize, termA, termB, numerSum, newDist } = cd;
+
+    const formula =
+        `d(${newClusterLabel(clusterA, clusterB)}, ${ckLabel})\n` +
+        `= [${sizeA}·d(${clusterA.label},${ckLabel}) + ${sizeB}·d(${clusterB.label},${ckLabel})] / (${sizeA}+${sizeB})\n` +
+        `= [${sizeA}·${fracToStr(dAk)} + ${sizeB}·${fracToStr(dBk)}] / ${totalSize}\n` +
+        `= [${fracToStr(termA)} + ${fracToStr(termB)}] / ${totalSize}\n` +
+        `= ${fracToStr(numerSum)} / ${totalSize}`;
+
+    const result = `= ${fracToStr(newDist)}${newDist.den > 1 ? ' ≈ ' + (fracToFloat(newDist)).toFixed(4) : ''}`;
+
+    return { formula, result };
+}
+
+function newClusterLabel(cA, cB) {
+    return `(${cA.label},${cB.label})`;
+}
+
+/* ================================================================
+   TOOLTIP DISPLAY
+   ================================================================ */
+const tooltipEl = document.getElementById('tooltip');
+const ttTitle = document.getElementById('tt-title');
+const ttFormula = document.getElementById('tt-formula');
+const ttResult = document.getElementById('tt-result');
+
+function showTooltip(e, data) {
+    ttTitle.textContent = 'UPGMA Calculation';
+    ttFormula.innerHTML = data.formula.replace(/\n/g, '<br>');
+    ttResult.innerHTML = data.result;
+    tooltipEl.style.display = 'block';
+    moveTooltip(e);
+}
+
+function moveTooltip(e) {
+    const tw = tooltipEl.offsetWidth;
+    const th = tooltipEl.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let x = e.clientX + 14;
+    let y = e.clientY + 14;
+    if (x + tw > vw - 10) x = e.clientX - tw - 10;
+    if (y + th > vh - 10) y = e.clientY - th - 10;
+    tooltipEl.style.left = x + 'px';
+    tooltipEl.style.top = y + 'px';
+}
+
+function hideTooltip() {
+    tooltipEl.style.display = 'none';
+}
+
+/* ================================================================
+   TREE RENDERING (SVG Dendrogram)
+   ================================================================ */
+function renderTree(treeNodes, rootId, allSteps) {
+    const section = document.getElementById('steps-section');
+
+    const treePanel = document.createElement('div');
+    treePanel.className = 'step-panel';
+    treePanel.id = 'tree-section';
+    treePanel.innerHTML = `
+        <h3>🌳 UPGMA Dendrogram</h3>
+        <div id="tree-canvas-wrap">
+            <canvas id="tree-canvas"></canvas>
+        </div>
+    `;
+    section.appendChild(treePanel);
+
+    // Build tree structure for rendering
+    const root = buildRenderTree(treeNodes, rootId, 0);
+    drawDendrogram(root, treeNodes, rootId);
+}
+
+function buildRenderTree(treeNodes, nodeId, depth) {
+    const node = treeNodes[nodeId];
+    if (!node) return null;
+    const children = [];
+    if (node.left !== null && node.left !== undefined) {
+        children.push(buildRenderTree(treeNodes, node.left, depth + 1));
+    }
+    if (node.right !== null && node.right !== undefined) {
+        children.push(buildRenderTree(treeNodes, node.right, depth + 1));
+    }
+    return { ...node, id: nodeId, children };
+}
+
+function getLeaves(node) {
+    if (!node) return [];
+    if (node.children.length === 0) return [node];
+    return node.children.flatMap(c => getLeaves(c));
+}
+
+function drawDendrogram(root, treeNodes, rootId) {
+    const canvas = document.getElementById('tree-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+
+    const LEAF_SPACING = 52;
+    const LEFT_MARGIN = 90;
+    const RIGHT_MARGIN = 20;
+    const TOP_MARGIN = 30;
+    const BOTTOM_MARGIN = 65;
+
+    const leaves = getLeaves(root);
+    const leafCount = leaves.length;
+
+    const maxHeight = root.height || 1;
+    const TREE_WIDTH = 400;
+    const WIDTH = LEFT_MARGIN + TREE_WIDTH + RIGHT_MARGIN;
+    const HEIGHT = TOP_MARGIN + leafCount * LEAF_SPACING + BOTTOM_MARGIN;
+
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
+    canvas.style.width = WIDTH + 'px';
+    canvas.style.height = HEIGHT + 'px';
+
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    // Scale: height 0 → right edge, maxHeight → left edge (at LEFT_MARGIN)
+    function heightToX(h) {
+        return LEFT_MARGIN + (1 - h / maxHeight) * TREE_WIDTH;
+    }
+
+    // Assign Y positions to leaves
+    const leafY = {};
+    leaves.forEach((leaf, i) => {
+        leafY[leaf.id] = TOP_MARGIN + (i + 0.5) * LEAF_SPACING;
+    });
+
+    // First pass: compute Y position for every node
+    function computeNodeY(node) {
+        if (!node) return 0;
+        if (node.children.length === 0) return leafY[node.id];
+        const childYs = node.children.map(c => computeNodeY(c));
+        return (Math.min(...childYs) + Math.max(...childYs)) / 2;
+    }
+
+    // Draw vertical grid lines
+    ctx.strokeStyle = '#e8e8e8';
+    ctx.lineWidth = 1;
+    const gridSteps = 5;
+    for (let g = 0; g <= gridSteps; g++) {
+        const h = (maxHeight * g) / gridSteps;
+        const x = heightToX(h);
+        ctx.beginPath();
+        ctx.moveTo(x, TOP_MARGIN / 2);
+        ctx.lineTo(x, HEIGHT - BOTTOM_MARGIN / 2);
+        ctx.stroke();
+        // Axis tick label
+        ctx.fillStyle = '#888888';
+        ctx.font = '9px Tahoma, sans-serif';
+        ctx.textAlign = 'center';
+        const dispH = Math.round(h * 10000) / 10000;
+        const lbl = Number.isInteger(dispH) ? dispH.toString() : dispH.toFixed(dispH < 1 ? 3 : 2);
+        ctx.fillText(lbl, x, HEIGHT - BOTTOM_MARGIN / 2 + 12);
+    }
+
+    // Axis title
+    ctx.fillStyle = '#000080';
+    ctx.font = 'bold 10px Tahoma, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Branch Height (= d/2)', LEFT_MARGIN + TREE_WIDTH / 2, HEIGHT - 6);
+
+    // Second pass: draw the tree recursively
+    function drawNode(node) {
+        if (!node) return 0;
+
+        if (node.children.length === 0) {
+            // Leaf: draw label to the left, and a thin dashed line to x=heightToX(0)
+            const y = leafY[node.id];
+            const xLeaf = heightToX(0);
+            ctx.strokeStyle = '#c0c0c0';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3, 3]);
+            ctx.beginPath();
+            ctx.moveTo(LEFT_MARGIN, y);
+            ctx.lineTo(xLeaf, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Leaf dot
+            ctx.fillStyle = '#000080';
+            ctx.beginPath();
+            ctx.arc(xLeaf, y, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Label
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 11px Tahoma, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(node.label, LEFT_MARGIN - 8, y + 4);
+            return y;
+        }
+
+        // Draw children first
+        node.children.forEach(c => drawNode(c));
+
+        const myY = computeNodeY(node);
+        const myX = heightToX(node.height);
+
+        // Get Y for each child
+        const childInfos = node.children.map(child => {
+            const cy = computeNodeY(child);
+            const cx = child.children.length === 0 ? heightToX(0) : heightToX(child.height);
+            return { cy, cx };
+        });
+
+        const allChildYs = childInfos.map(ci => ci.cy);
+        const minChildY = Math.min(...allChildYs);
+        const maxChildY = Math.max(...allChildYs);
+
+        // Vertical bar
+        ctx.strokeStyle = '#000080';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(myX, minChildY);
+        ctx.lineTo(myX, maxChildY);
+        ctx.stroke();
+
+        // Horizontal lines from vertical bar to each child's join point
+        childInfos.forEach(ci => {
+            ctx.strokeStyle = '#000080';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(myX, ci.cy);
+            ctx.lineTo(ci.cx, ci.cy);
+            ctx.stroke();
+        });
+
+        // Node dot at the merge point
+        ctx.fillStyle = '#800000';
+        ctx.beginPath();
+        ctx.arc(myX, myY, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Height label above the merge point
+        if (node.heightFrac) {
+            const lbl = fracToStr(node.heightFrac);
+            ctx.fillStyle = '#800000';
+            ctx.font = 'bold 9px Courier New, monospace';
+            ctx.textAlign = 'center';
+            // Measure text to put a white background behind it
+            const tw = ctx.measureText(lbl).width;
+            ctx.fillStyle = 'rgba(255,255,240,0.85)';
+            ctx.fillRect(myX - tw / 2 - 2, myY - 17, tw + 4, 12);
+            ctx.fillStyle = '#800000';
+            ctx.fillText(lbl, myX, myY - 7);
+        }
+
+        return myY;
+    }
+
+    drawNode(root);
+}
+
+function fracToDisplayStr(h, maxH, steps, g) {
+    // Try to express as a clean number
+    const v = h;
+    if (Math.abs(v - Math.round(v)) < 0.0001) return Math.round(v).toString();
+    return v.toFixed(2);
+}
+
+/* ================================================================
+   LOAD EXAMPLE DATA
+   ================================================================ */
+function loadExample() {
+    // Classic UPGMA example: 5 sequences
+    document.getElementById('num-seqs').value = 5;
+    numSeqs = 5;
+    seqNames = ['A', 'B', 'C', 'D', 'E'];
+    inputMatrix = Array.from({ length: 5 }, () => Array(5).fill(''));
+
+    const exampleDistances = [
+        // A, B, C, D, E
+        [0, 2, 4, 6, 6],  // A
+        [2, 0, 4, 6, 6],  // B
+        [4, 4, 0, 6, 6],  // C
+        [6, 6, 6, 0, 4],  // D
+        [6, 6, 6, 4, 0],  // E
+    ];
+
+    for (let i = 0; i < 5; i++) {
+        for (let j = 0; j < 5; j++) {
+            inputMatrix[i][j] = exampleDistances[i][j] === 0 ? '' : String(exampleDistances[i][j]);
+        }
+    }
+
+    renderMatrixInput();
+    renderSeqNames();
+
+    // Set values in the inputs
+    for (let i = 0; i < 5; i++) {
+        for (let j = i + 1; j < 5; j++) {
+            const inp = document.getElementById(`mcell-${i}-${j}`);
+            if (inp) {
+                inp.value = String(exampleDistances[i][j]);
+                // Mirror
+                const mirror = document.getElementById(`mcell-${j}-${i}`);
+                if (mirror) mirror.value = String(exampleDistances[i][j]);
+            }
+        }
+    }
+
+    document.getElementById('steps-section').innerHTML = '';
+    setStatus('Example loaded: 5 sequences (A–E). Click Run UPGMA to calculate.');
+}
+
+/* ================================================================
+   RESET
+   ================================================================ */
+function resetAll() {
+    numSeqs = 0;
+    seqNames = [];
+    inputMatrix = [];
+    document.getElementById('num-seqs').value = 4;
+    document.getElementById('matrix-input-wrap').innerHTML = `
+        <div id="empty-state">
+            <div class="es-icon">🧬</div>
+            <div>Set the number of sequences and click <b>Build Matrix</b> to begin</div>
+        </div>`;
+    document.getElementById('seq-names-container').innerHTML =
+        '<div style="font-size:10px; color:#808080; font-style:italic;">Build matrix first</div>';
+    document.getElementById('steps-section').innerHTML = '';
+    setStatus('Reset. Set the number of sequences and build the matrix.');
+}
+
+/* ================================================================
+   STATUS BAR
+   ================================================================ */
+function setStatus(msg) {
+    document.getElementById('status').textContent = msg;
+}
+
+/* ================================================================
+   KEYBOARD SHORTCUT: Enter to run
+   ================================================================ */
+document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.ctrlKey) {
+        runUPGMA();
+    }
+});
+</script>
+</body>
+</html>
